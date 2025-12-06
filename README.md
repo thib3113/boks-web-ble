@@ -16,16 +16,7 @@ Une interface web simple pour interagir avec les boîtes à colis connectées Bo
 ## Utilisation
 
 ### Hébergement
-Le projet est déjà hébergé à l'adresse : **https://xxxxxxxxx.com**
-
-Vous pouvez également héberger cette interface en utilisant l'une des méthodes suivantes :
-1.  **GitHub Pages** : Poussez le code sur un dépôt GitHub et activez GitHub Pages.
-2.  **Serveur Local** : Utilisez un serveur HTTP simple (par exemple, `http.server` de Python ou `http-server` de Node.js).
-    ```bash
-    # Python 3
-    python -m http.server 8000
-    # Ouvrez ensuite http://localhost:8000 dans votre navigateur
-    ```
+Le projet est déjà hébergé à l'adresse : **https://thib3113.github.io/boks-web-ble/**
 
 ### Guide étape par étape
 1.  Ouvrez l'application dans votre navigateur.
