@@ -11,6 +11,7 @@ jobs:
     # Specify runner +  build & upload the static files as an artifact
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
       - name: Upload static files as artifact
         id: deployment
         uses: actions/upload-pages-artifact@v4
