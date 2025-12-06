@@ -54,12 +54,7 @@ The project is already hosted at: **https://thib3113.github.io/boks-web-ble/**
 You can also host this interface using one of the following methods:
 1.  **GitHub Pages**: Push the code to a GitHub repository and enable GitHub Pages.
 2.  **Local Server**: Use a simple HTTP server (e.g., Python's `http.server` or Node.js `http-server`).
-    ```bash
-    # Python 3
-    python -m http.server 8000
-    # Then open http://localhost:8000 in your browser
-    ```
-
+3. 
 ### Step-by-Step Guide
 1.  Open the application in your browser.
 2.  Click **Connect** and select your Boks device from the list.

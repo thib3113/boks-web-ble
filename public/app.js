@@ -3,14 +3,23 @@ const SERVICE_UUID = 'a7630001-f491-4f21-95ea-846ba586e361';
 const WRITE_CHAR_UUID = 'a7630002-f491-4f21-95ea-846ba586e361';
 const NOTIFY_CHAR_UUID = 'a7630003-f491-4f21-95ea-846ba586e361';
 
+const BATTERY_SERVICE_UUID = '0000180f-0000-1000-8000-00805f9b34fb';
+const BATTERY_LEVEL_CHAR_UUID = '00002a19-0000-1000-8000-00805f9b34fb';
+
+const DEVICE_INFO_SERVICE_UUID = '0000180a-0000-1000-8000-00805f9b34fb';
+const SOFTWARE_REV_CHAR_UUID = '00002a28-0000-1000-8000-00805f9b34fb';
+
 // Opcodes
 const OP_OPEN_DOOR = 0x01;
+const OP_ASK_DOOR_STATUS = 0x02;
 const OP_GET_LOGS_COUNT = 0x07;
 const OP_REQUEST_LOGS = 0x03;
 const OP_CREATE_MASTER = 0x11;
 const OP_CREATE_SINGLE = 0x12;
 const OP_CREATE_MULTI = 0x13;
 const OP_NOTIFY_LOGS_COUNT = 0x79;
+const OP_NOTIFY_DOOR_STATUS = 0x84;
+const OP_ANSWER_DOOR_STATUS = 0x85;
 const OP_END_HISTORY = 0x92;
 
 const OPCODE_NAMES = {
@@ -111,6 +120,7 @@ let notifyChar = null;
 const connectBtn = document.getElementById('connectBtn');
 const statusDiv = document.getElementById('status');
 const controlsDiv = document.getElementById('controls');
+const deviceInfoDiv = document.getElementById('deviceInfo');
 const consoleLog = document.getElementById('consoleLog');
 const clearLogBtn = document.getElementById('clearLogBtn');
 
@@ -136,11 +146,85 @@ function log(msg, type = 'info') {
     consoleLog.scrollTop = consoleLog.scrollHeight;
 }
 
+function parsePacketDetails(opcode, data) {
+    // Helper to format hex string
+    const toHex = (arr) => Array.from(arr).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+
+    try {
+        if (opcode === OP_NOTIFY_LOGS_COUNT && data.length >= 4) {
+            const count = (data[2] << 8) | data[3];
+            return `Count=${count}`;
+        }
+        
+        if ((opcode === OP_ANSWER_DOOR_STATUS || opcode === OP_NOTIFY_DOOR_STATUS) && data.length >= 4) {
+            const isClosed = data[3] === 0;
+            const isOpen = data[3] === 1;
+            const state = isOpen ? 'OPEN' : (isClosed ? 'CLOSED' : `UNKNOWN(${data[3]})`);
+            return `Status=${state}`;
+        }
+
+        if (opcode === OP_NOTIFY_CODES_COUNT && data.length >= 6) {
+             const masterCount = (data[2] << 8) | data[3];
+             const singleCount = (data[4] << 8) | data[5];
+             return `Master=${masterCount}, Single=${singleCount}`;
+        }
+        
+        // History Events (Opcode 0x86 - 0xA2, generally)
+        // General structure: [Opcode][Len][Age 3 bytes]...
+        // We can at least parse the Age for all history events if len >= 5
+        if ((opcode >= 0x86 && opcode <= 0xA2) && data.length >= 5) {
+             const age = (data[2] << 16) | (data[3] << 8) | data[4];
+             let extra = '';
+             
+             // Specific Parsers based on Opcode
+             if (opcode === 0x86 || opcode === 0x88) { // CODE_BLE_VALID / INVALID
+                 // [Op][Len][Age 3][Code 6][Pad 2][Mac 6] ?
+                 // Based on examples: 86 11 0004b2 313233344142 0000 dc3b76ad6c4a
+                 if (data.length >= 11) {
+                     const codeBytes = data.slice(5, 11);
+                     const codeStr = new TextDecoder().decode(codeBytes);
+                     extra = `, Code="${codeStr}"`;
+                 }
+             } else if (opcode === 0x87 || opcode === 0x89) { // CODE_KEY_VALID / INVALID
+                 // [Op][Len][Age 3][Code 6]
+                 if (data.length >= 11) {
+                     const codeBytes = data.slice(5, 11);
+                     const codeStr = new TextDecoder().decode(codeBytes);
+                     extra = `, Code="${codeStr}"`;
+                 }
+             } else if (opcode === 0x94) { // POWER_OFF
+                 // [Op][Len][Age 3][Reason 1]
+                 if (data.length >= 6) {
+                     const reasonMap = {1:'PIN_RESET', 2:'WATCHDOG', 3:'SOFT_RESET', 4:'LOCKUP', 5:'GPIO', 6:'LPCOMP', 7:'DEBUG', 8:'NFC'};
+                     extra = `, Reason=${reasonMap[data[5]] || data[5]}`;
+                 }
+             } else if (opcode === 0xA0) { // ERROR
+                 // [Op][Len][Age 3][ErrorCode 1]
+                 if (data.length >= 6) {
+                     extra = `, ErrorCode=${data[5]}`;
+                 }
+             }
+
+             return `Age=${age}s${extra}`;
+        }
+
+        return '';
+    } catch (e) {
+        return `ParseError: ${e.message}`;
+    }
+}
+
 function logPacket(label, data) {
     const opcode = data[0];
     const opName = OPCODE_NAMES[opcode] || `UNKNOWN_OP(0x${opcode.toString(16).toUpperCase()})`;
     const hex = Array.from(data).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-    log(`${label}: [${opName}] ${hex}`, label === 'TX' ? 'tx' : 'rx');
+    
+    let details = parsePacketDetails(opcode, data);
+    if (details) {
+        details = ` | ${details}`;
+    }
+
+    log(`${label}: [${opName}] ${hex}${details}`, label === 'TX' ? 'tx' : 'rx');
 }
 
 // BLE Functions
@@ -148,7 +232,8 @@ async function connect() {
     try {
         log('Requesting Bluetooth Device...');
         device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: [SERVICE_UUID] }]
+            filters: [{ services: [SERVICE_UUID] }],
+            optionalServices: [BATTERY_SERVICE_UUID, DEVICE_INFO_SERVICE_UUID]
         });
 
         device.addEventListener('gattserverdisconnected', onDisconnected);
@@ -171,7 +256,11 @@ async function connect() {
         statusDiv.className = 'status connected';
         connectBtn.disabled = true;
         controlsDiv.classList.remove('disabled');
+        deviceInfoDiv.classList.remove('disabled');
         log('Connected successfully!');
+
+        // Initial Info Fetch (One-time)
+        fetchInitialDeviceInfo();
 
     } catch (error) {
         log('Connection failed: ' + error, 'error');
@@ -183,6 +272,7 @@ function onDisconnected() {
     statusDiv.className = 'status disconnected';
     connectBtn.disabled = false;
     controlsDiv.classList.add('disabled');
+    deviceInfoDiv.classList.add('disabled');
     log('Device disconnected', 'error');
 }
 
@@ -193,12 +283,22 @@ function handleNotifications(event) {
     const opcode = value[0];
     
     if (opcode === OP_NOTIFY_LOGS_COUNT) {
-        const logCount = value[2];
+        // Payload: [MSB, LSB] (Big Endian)
+        // Packet: [Opcode(0x79), Length(0x02), MSB, LSB, Checksum]
+        const logCount = (value[2] << 8) | value[3];
         log(`Logs count: ${logCount}`, 'info');
         if (logCount > 0) {
             requestLogs();
         } else {
             log('No logs to retrieve', 'info');
+        }
+    } else if (opcode === OP_ANSWER_DOOR_STATUS || opcode === OP_NOTIFY_DOOR_STATUS) {
+        // Payload: [Inverted?, LiveStatus]
+        // value[0]=Op, value[1]=Len(02), value[2]=Inverted?, value[3]=LiveStatus
+        if (value.length >= 4) {
+            const isOpen = value[3] === 1;
+            updateDoorStatusUI(isOpen);
+            log(`Door is ${isOpen ? 'OPEN' : 'CLOSED'}`, 'info');
         }
     } else if (opcode === OP_END_HISTORY) {
         log('End of history received', 'info');
@@ -214,6 +314,45 @@ async function sendPacket(packet) {
     } catch (error) {
         log('Send failed: ' + error, 'error');
     }
+}
+
+// Device Info Functions
+async function fetchInitialDeviceInfo() {
+    log('Fetching Initial Device Info...', 'info');
+    
+    // 1. Get Battery Level
+    try {
+        const batteryService = await server.getPrimaryService(BATTERY_SERVICE_UUID);
+        const batteryChar = await batteryService.getCharacteristic(BATTERY_LEVEL_CHAR_UUID);
+        const value = await batteryChar.readValue();
+        const level = value.getUint8(0);
+        document.getElementById('batteryLevel').textContent = `${level}%`;
+        log(`Battery Level: ${level}%`, 'info');
+    } catch (e) {
+        log('Failed to get Battery Level: ' + e, 'error');
+        document.getElementById('batteryLevel').textContent = 'Error';
+    }
+
+    // 2. Get Firmware Version
+    try {
+        const deviceService = await server.getPrimaryService(DEVICE_INFO_SERVICE_UUID);
+        const fwChar = await deviceService.getCharacteristic(SOFTWARE_REV_CHAR_UUID);
+        const value = await fwChar.readValue();
+        const decoder = new TextDecoder('utf-8');
+        const version = decoder.decode(value);
+        document.getElementById('fwVersion').textContent = version;
+        log(`Firmware Version: ${version}`, 'info');
+    } catch (e) {
+        log('Failed to get Firmware Version: ' + e, 'error');
+        document.getElementById('fwVersion').textContent = 'Error';
+    }
+}
+
+function updateDoorStatusUI(isOpen) {
+    const el = document.getElementById('doorStatus');
+    el.textContent = isOpen ? 'OPEN' : 'CLOSED';
+    el.style.color = isOpen ? '#e57373' : '#28a745'; // Red for Open, Green for Closed (Secure)
+    el.style.fontWeight = 'bold';
 }
 
 // Command Functions
