@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boks Web BLE</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a73e8;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        h2, h3 {
+            margin-top: 0;
+        }
+
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #1557b0;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-group label {
+            width: 200px;
+            font-weight: 500;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .status.connected {
+            color: #28a745;
+        }
+
+        .status.disconnected {
+            color: #dc3545;
+        }
+
+        #consoleLog {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 10px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-tx { color: #4fc3f7; }
+        .log-rx { color: #ffb74d; }
+        .log-info { color: #81c784; }
+        .log-error { color: #e57373; }
+
+        #logsContainer {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Boks Web BLE Controller</h1>
+        
+        <div class="card">
+            <h2>Connection</h2>
+            <button id="connectBtn">Connect to Boks</button>
+            <div id="status" class="status disconnected">Disconnected</div>
+        </div>
+
+        <div class="card disabled" id="controls">
+            <div class="section">
+                <h3>Open Door</h3>
+                <div class="input-group">
+                    <input type="text" id="openCode" placeholder="6-digit Code" maxlength="6">
+                    <button id="openDoorBtn">Open Door</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Create Code</h3>
+                <div class="input-group">
+                    <label>Configuration Key (8 chars):</label>
+                    <input type="text" id="configKey" placeholder="e.g. AABBCCDD" maxlength="8">
+                </div>
+                <div class="input-group">
+                    <label>New Code (6 chars [0-9, A, B]):</label>
+                    <input type="text" id="newCode" placeholder="e.g. 1234AB" maxlength="6">
+                </div>
+                <div class="input-group">
+                    <label>Type:</label>
+                    <select id="codeType">
+                        <option value="master">Master Code (0x11)</option>
+                        <option value="single">Single Use (0x12)</option>
+                        <option value="multi">Multi Use (0x13)</option>
+                    </select>
+                </div>
+                <div class="input-group" id="indexGroup">
+                    <label>Index (Master only):</label>
+                    <input type="number" id="codeIndex" value="0" min="0" max="255">
+                </div>
+                <button id="createCodeBtn">Create Code</button>
+            </div>
+
+            <div class="section">
+                <h3>Logs</h3>
+                <button id="getLogsBtn">Get Logs</button>
+                <div id="logsContainer"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Console Log</h3>
+            <div id="consoleLog"></div>
+            <button id="clearLogBtn">Clear Log</button>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
