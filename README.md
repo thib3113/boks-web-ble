@@ -49,7 +49,7 @@ A simple web interface to interact with Boks smart parcel boxes via Web Bluetoot
 ## Usage
 
 ### Hosting
-The project is already hosted at: **https://xxxxxxxxx.com**
+The project is already hosted at: **https://thib3113.github.io/boks-web-ble/**
 
 You can also host this interface using one of the following methods:
 1.  **GitHub Pages**: Push the code to a GitHub repository and enable GitHub Pages.
