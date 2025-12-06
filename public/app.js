@@ -21,6 +21,7 @@ const OP_NOTIFY_LOGS_COUNT = 0x79;
 const OP_NOTIFY_DOOR_STATUS = 0x84;
 const OP_ANSWER_DOOR_STATUS = 0x85;
 const OP_END_HISTORY = 0x92;
+const OP_NOTIFY_CODES_COUNT = 0xC3;
 
 const OPCODE_NAMES = {
     0x01: 'OPEN_DOOR',
@@ -155,7 +156,7 @@ function parsePacketDetails(opcode, data) {
             const count = (data[2] << 8) | data[3];
             return `Count=${count}`;
         }
-        
+
         if ((opcode === OP_ANSWER_DOOR_STATUS || opcode === OP_NOTIFY_DOOR_STATUS) && data.length >= 4) {
             const isClosed = data[3] === 0;
             const isOpen = data[3] === 1;
@@ -168,14 +169,14 @@ function parsePacketDetails(opcode, data) {
              const singleCount = (data[4] << 8) | data[5];
              return `Master=${masterCount}, Single=${singleCount}`;
         }
-        
+
         // History Events (Opcode 0x86 - 0xA2, generally)
         // General structure: [Opcode][Len][Age 3 bytes]...
         // We can at least parse the Age for all history events if len >= 5
         if ((opcode >= 0x86 && opcode <= 0xA2) && data.length >= 5) {
              const age = (data[2] << 16) | (data[3] << 8) | data[4];
              let extra = '';
-             
+
              // Specific Parsers based on Opcode
              if (opcode === 0x86 || opcode === 0x88) { // CODE_BLE_VALID / INVALID
                  // [Op][Len][Age 3][Code 6][Pad 2][Mac 6] ?
@@ -218,7 +219,7 @@ function logPacket(label, data) {
     const opcode = data[0];
     const opName = OPCODE_NAMES[opcode] || `UNKNOWN_OP(0x${opcode.toString(16).toUpperCase()})`;
     const hex = Array.from(data).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-    
+
     let details = parsePacketDetails(opcode, data);
     if (details) {
         details = ` | ${details}`;
@@ -281,7 +282,7 @@ function handleNotifications(event) {
     logPacket('RX', value);
 
     const opcode = value[0];
-    
+
     if (opcode === OP_NOTIFY_LOGS_COUNT) {
         // Payload: [MSB, LSB] (Big Endian)
         // Packet: [Opcode(0x79), Length(0x02), MSB, LSB, Checksum]
@@ -297,7 +298,6 @@ function handleNotifications(event) {
         // value[0]=Op, value[1]=Len(02), value[2]=Inverted?, value[3]=LiveStatus
         if (value.length >= 4) {
             const isOpen = value[3] === 1;
-            updateDoorStatusUI(isOpen);
             log(`Door is ${isOpen ? 'OPEN' : 'CLOSED'}`, 'info');
         }
     } else if (opcode === OP_END_HISTORY) {
@@ -319,7 +319,7 @@ async function sendPacket(packet) {
 // Device Info Functions
 async function fetchInitialDeviceInfo() {
     log('Fetching Initial Device Info...', 'info');
-    
+
     // 1. Get Battery Level
     try {
         const batteryService = await server.getPrimaryService(BATTERY_SERVICE_UUID);
@@ -348,16 +348,9 @@ async function fetchInitialDeviceInfo() {
     }
 }
 
-function updateDoorStatusUI(isOpen) {
-    const el = document.getElementById('doorStatus');
-    el.textContent = isOpen ? 'OPEN' : 'CLOSED';
-    el.style.color = isOpen ? '#e57373' : '#28a745'; // Red for Open, Green for Closed (Secure)
-    el.style.fontWeight = 'bold';
-}
-
 // Command Functions
 async function openDoor() {
-    const code = document.getElementById('openCode').value;
+    const code = document.getElementById('openCode').value?.toUpperCase();
     if (!/^[0-9AB]{6}$/.test(code)) {
         log('Invalid code format. Must be 6 chars (0-9, A, B)', 'error');
         return;
@@ -377,7 +370,7 @@ async function openDoor() {
 
 async function createCode() {
     const configKey = document.getElementById('configKey').value;
-    const newCode = document.getElementById('newCode').value;
+    const newCode = document.getElementById('newCode').value?.toUpperCase();
     const type = document.getElementById('codeType').value;
     const index = parseInt(document.getElementById('codeIndex').value);
 
@@ -406,17 +399,17 @@ async function createCode() {
     // 0x11: [0x11][LENGTH][CONFIG_KEY(8)][CODE(6)][INDEX(1)][CHECKSUM] -> Total 18.
     // So Length byte value?
     // 0x12: [0x12][LENGTH][CONFIG_KEY(8)][CODE(6)][CHECKSUM] -> Total 17.
-    
+
     // Let's look at examples in doc.
     // 0x16 example: 16 0a ... (10 bytes payload) -> 8 key + 1 type + 1 enabled.
     // So Length seems to be payload length (excluding checksum).
-    
+
     // For 0x11: Key(8) + Code(6) + Index(1) = 15 bytes.
     // For 0x12/0x13: Key(8) + Code(6) = 14 bytes.
 
     const packetLength = type === 'master' ? 18 : 17;
     const packet = new Uint8Array(packetLength);
-    
+
     let p = 0;
     packet[p++] = opcode;
     packet[p++] = type === 'master' ? 15 : 14; // Length of payload
@@ -464,7 +457,7 @@ function parseLogEvent(data) {
     const opcode = data[0];
     const length = data[1];
     const payload = data.slice(2, 2 + length);
-    
+
     const container = document.getElementById('logsContainer');
     const div = document.createElement('div');
     div.style.borderBottom = '1px solid #eee';
