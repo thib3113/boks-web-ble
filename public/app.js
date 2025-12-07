@@ -133,6 +133,7 @@ let storedData = {
 
 // UI Elements
 const connectBtn = document.getElementById('connectBtn');
+const disconnectBtn = document.getElementById('disconnectBtn');
 const statusDiv = document.getElementById('status');
 const controlsDiv = document.getElementById('controls');
 const deviceInfoDiv = document.getElementById('deviceInfo');
@@ -141,6 +142,7 @@ const clearLogBtn = document.getElementById('clearLogBtn');
 
 // Event Listeners
 connectBtn.addEventListener('click', connect);
+disconnectBtn.addEventListener('click', disconnect);
 clearLogBtn.addEventListener('click', () => consoleLog.innerHTML = '');
 
 document.getElementById('openDoorBtn').addEventListener('click', openDoor);
@@ -324,6 +326,7 @@ async function connect() {
         statusDiv.textContent = 'Connected';
         statusDiv.className = 'status connected';
         connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
         controlsDiv.classList.remove('disabled');
         deviceInfoDiv.classList.remove('disabled');
         log('Connected successfully!');
@@ -336,10 +339,18 @@ async function connect() {
     }
 }
 
+function disconnect() {
+    if (device && device.gatt.connected) {
+        log('Disconnecting...');
+        device.gatt.disconnect();
+    }
+}
+
 function onDisconnected() {
     statusDiv.textContent = 'Disconnected';
     statusDiv.className = 'status disconnected';
     connectBtn.disabled = false;
+    disconnectBtn.disabled = true;
     controlsDiv.classList.add('disabled');
     deviceInfoDiv.classList.add('disabled');
     log('Device disconnected', 'error');
