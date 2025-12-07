@@ -1,0 +1,17 @@
+{
+  "name": "Boks Web Controller",
+  "short_name": "Boks BLE",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f0f2f5",
+  "theme_color": "#1a73e8",
+  "description": "Web Bluetooth Controller for Boks Parcel Box",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

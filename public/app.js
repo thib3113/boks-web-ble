@@ -253,14 +253,14 @@ function loadStorage() {
     if (data) {
         try {
             storedData = JSON.parse(data);
-            
+
             // Restore Inputs
             if (storedData.configKey) document.getElementById('configKey').value = storedData.configKey;
             if (storedData.openCode) document.getElementById('openCode').value = storedData.openCode;
 
             // Render previous logs
             renderStoredLogs();
-            
+
             log(`Loaded stored data for device ${currentDeviceId}`, 'info');
         } catch {
             log('Failed to parse stored data', 'error');
@@ -271,7 +271,7 @@ function loadStorage() {
 function renderStoredLogs() {
     const container = document.getElementById('logsContainer');
     container.innerHTML = ''; // Clear current view
-    
+
     // Header
     const header = document.createElement('div');
     header.style.fontWeight = 'bold';
@@ -287,14 +287,14 @@ function renderStoredLogs() {
         div.style.borderBottom = '1px solid #eee';
         div.style.padding = '5px';
         div.style.fontSize = '12px';
-        
+
         let content = `[${new Date(entry.timestamp).toLocaleString()}] ${entry.type}`;
         if (entry.details) content += ` - ${entry.details}`;
-        
+
         div.textContent = content;
         container.appendChild(div);
     });
-    
+
     container.scrollTop = container.scrollHeight;
 }
 
@@ -430,7 +430,7 @@ async function fetchInitialDeviceInfo() {
                         .map(b => b.toString(16).padStart(2, '0').toUpperCase())
                         .join(':');
                     displayValue = hexId;
-                    
+
                     // Use System ID as Device ID for storage
                     currentDeviceId = hexId;
                     log(`Device ID set to System ID: ${currentDeviceId}`, 'info');
@@ -472,7 +472,6 @@ async function fetchInitialDeviceInfo() {
     }
 }
 
-// Command Functions
 async function openDoor() {
     const code = document.getElementById('openCode').value;
     if (!/^[0-9AB]{6}$/.test(code)) {
@@ -529,7 +528,7 @@ async function createCode() {
     // Let's look at examples in doc.
     // 0x16 example: 16 0a ... (10 bytes payload) -> 8 key + 1 type + 1 enabled.
     // So Length seems to be payload length (excluding checksum).
-    
+
     // For 0x11: Key(8) + Code(6) + Index(1) = 15 bytes.
     // For 0x12/0x13: Key(8) + Code(6) = 14 bytes.
 
@@ -582,10 +581,10 @@ async function requestLogs() {
 function parseLogEvent(data) {
     const opcode = data[0];
     const opName = OPCODE_NAMES[opcode] || `UNKNOWN_OP(0x${opcode.toString(16).toUpperCase()})`;
-    
+
     // Parse details
     const details = parsePacketDetails(opcode, data);
-    
+
     // Create Entry Object
     const entry = {
         timestamp: Date.now(), // Approximate capture time
@@ -595,7 +594,7 @@ function parseLogEvent(data) {
         raw: Array.from(data).map(b => b.toString(16).padStart(2, '0')).join('')
     };
 
-    // Add to storage if not duplicate (simple check based on raw + approximate timestamp? No, logs might be same. 
+    // Add to storage if not duplicate (simple check based on raw + approximate timestamp? No, logs might be same.
     // Ideally we should deduce real timestamp from "Age", but "Age" changes.
     // Let's just append for now as requested.
     storedData.logs.push(entry);
@@ -607,11 +606,20 @@ function parseLogEvent(data) {
     div.style.borderBottom = '1px solid #eee';
     div.style.padding = '5px';
     div.style.fontSize = '12px';
-    
+
     let text = `[New] ${opName}`;
     if (details) text += ` - ${details}`;
-    
+
     div.textContent = text;
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
+}
+
+// Service Worker Registration
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => log('Service Worker registered', 'info'))
+            .catch(err => log('Service Worker registration failed: ' + err, 'error'));
+    });
 }
