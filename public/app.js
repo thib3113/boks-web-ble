@@ -7,11 +7,18 @@ const BATTERY_SERVICE_UUID = '0000180f-0000-1000-8000-00805f9b34fb';
 const BATTERY_LEVEL_CHAR_UUID = '00002a19-0000-1000-8000-00805f9b34fb';
 
 const DEVICE_INFO_SERVICE_UUID = '0000180a-0000-1000-8000-00805f9b34fb';
-const SOFTWARE_REV_CHAR_UUID = '00002a28-0000-1000-8000-00805f9b34fb';
+const DEVICE_INFO_CHARS = {
+    'System ID': '00002a23-0000-1000-8000-00805f9b34fb',
+    'Model Number': '00002a24-0000-1000-8000-00805f9b34fb',
+    'Serial Number': '00002a25-0000-1000-8000-00805f9b34fb',
+    'Firmware Revision': '00002a26-0000-1000-8000-00805f9b34fb',
+    'Hardware Revision': '00002a27-0000-1000-8000-00805f9b34fb',
+    'Software Revision': '00002a28-0000-1000-8000-00805f9b34fb',
+    'Manufacturer Name': '00002a29-0000-1000-8000-00805f9b34fb'
+};
 
 // Opcodes
 const OP_OPEN_DOOR = 0x01;
-const OP_ASK_DOOR_STATUS = 0x02;
 const OP_GET_LOGS_COUNT = 0x07;
 const OP_REQUEST_LOGS = 0x03;
 const OP_CREATE_MASTER = 0x11;
@@ -116,6 +123,13 @@ let server = null;
 let service = null;
 let writeChar = null;
 let notifyChar = null;
+let currentDeviceId = null;
+let storedData = {
+    configKey: '',
+    openCode: '',
+    logs: [],
+    createdCodes: []
+};
 
 // UI Elements
 const connectBtn = document.getElementById('connectBtn');
@@ -148,9 +162,6 @@ function log(msg, type = 'info') {
 }
 
 function parsePacketDetails(opcode, data) {
-    // Helper to format hex string
-    const toHex = (arr) => Array.from(arr).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-
     try {
         if (opcode === OP_NOTIFY_LOGS_COUNT && data.length >= 4) {
             const count = (data[2] << 8) | data[3];
@@ -226,6 +237,63 @@ function logPacket(label, data) {
     }
 
     log(`${label}: [${opName}] ${hex}${details}`, label === 'TX' ? 'tx' : 'rx');
+}
+
+// Storage Functions
+function saveStorage() {
+    if (!currentDeviceId) return;
+    localStorage.setItem(`boks_${currentDeviceId}`, JSON.stringify(storedData));
+}
+
+function loadStorage() {
+    if (!currentDeviceId) return;
+    const data = localStorage.getItem(`boks_${currentDeviceId}`);
+    if (data) {
+        try {
+            storedData = JSON.parse(data);
+            
+            // Restore Inputs
+            if (storedData.configKey) document.getElementById('configKey').value = storedData.configKey;
+            if (storedData.openCode) document.getElementById('openCode').value = storedData.openCode;
+
+            // Render previous logs
+            renderStoredLogs();
+            
+            log(`Loaded stored data for device ${currentDeviceId}`, 'info');
+        } catch {
+            log('Failed to parse stored data', 'error');
+        }
+    }
+}
+
+function renderStoredLogs() {
+    const container = document.getElementById('logsContainer');
+    container.innerHTML = ''; // Clear current view
+    
+    // Header
+    const header = document.createElement('div');
+    header.style.fontWeight = 'bold';
+    header.style.padding = '5px';
+    header.style.borderBottom = '2px solid #ccc';
+    header.textContent = `Stored Logs (${storedData.logs.length})`;
+    container.appendChild(header);
+
+    // Render logs (newest first usually better for UI, but array is oldest first? Let's show as is)
+    // Actually, appending usually puts newest at bottom.
+    storedData.logs.forEach(entry => {
+        const div = document.createElement('div');
+        div.style.borderBottom = '1px solid #eee';
+        div.style.padding = '5px';
+        div.style.fontSize = '12px';
+        
+        let content = `[${new Date(entry.timestamp).toLocaleString()}] ${entry.type}`;
+        if (entry.details) content += ` - ${entry.details}`;
+        
+        div.textContent = content;
+        container.appendChild(div);
+    });
+    
+    container.scrollTop = container.scrollHeight;
 }
 
 // BLE Functions
@@ -333,28 +401,77 @@ async function fetchInitialDeviceInfo() {
         document.getElementById('batteryLevel').textContent = 'Error';
     }
 
-    // 2. Get Firmware Version
+    // 2. Get Device Information
     try {
         const deviceService = await server.getPrimaryService(DEVICE_INFO_SERVICE_UUID);
-        const fwChar = await deviceService.getCharacteristic(SOFTWARE_REV_CHAR_UUID);
-        const value = await fwChar.readValue();
-        const decoder = new TextDecoder('utf-8');
-        const version = decoder.decode(value);
-        document.getElementById('fwVersion').textContent = version;
-        log(`Firmware Version: ${version}`, 'info');
+        const infoContainer = document.getElementById('deviceInfoContainer'); // New container in HTML
+        infoContainer.innerHTML = ''; // Clear previous
+
+        for (const [name, uuid] of Object.entries(DEVICE_INFO_CHARS)) {
+            try {
+                const char = await deviceService.getCharacteristic(uuid);
+                const value = await char.readValue();
+                let displayValue = '';
+
+                if (name === 'System ID') {
+                    // System ID is bytes, display as Hex
+                    const hexId = Array.from(new Uint8Array(value.buffer))
+                        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                        .join(':');
+                    displayValue = hexId;
+                    
+                    // Use System ID as Device ID for storage
+                    currentDeviceId = hexId;
+                    log(`Device ID set to System ID: ${currentDeviceId}`, 'info');
+                    loadStorage();
+                } else {
+                    // Others are usually text
+                    const decoder = new TextDecoder('utf-8');
+                    displayValue = decoder.decode(value);
+                }
+
+                // Add to UI
+                const div = document.createElement('div');
+                div.className = 'input-group';
+                div.innerHTML = `<label>${name}:</label><span>${displayValue}</span>`;
+                infoContainer.appendChild(div);
+
+                log(`${name}: ${displayValue}`, 'info');
+
+            } catch (charError) {
+                // Characteristic not supported or read failed, skip it
+                log(`${name} not available: ${charError.message}`, 'debug');
+            }
+        }
+
+        // Fallback for Device ID if System ID failed
+        if (!currentDeviceId) {
+            currentDeviceId = device.id;
+            log(`System ID not found, using instance ID: ${currentDeviceId}`, 'warning');
+            loadStorage();
+        }
+
     } catch (e) {
-        log('Failed to get Firmware Version: ' + e, 'error');
-        document.getElementById('fwVersion').textContent = 'Error';
+        log('Failed to access Device Info Service: ' + e, 'error');
+        // Still try to load storage if we connected but service failed
+        if (!currentDeviceId) {
+             currentDeviceId = device.id;
+             loadStorage();
+        }
     }
 }
 
 // Command Functions
 async function openDoor() {
-    const code = document.getElementById('openCode').value?.toUpperCase();
+    const code = document.getElementById('openCode').value;
     if (!/^[0-9AB]{6}$/.test(code)) {
         log('Invalid code format. Must be 6 chars (0-9, A, B)', 'error');
         return;
     }
+
+    // Save to storage
+    storedData.openCode = code;
+    saveStorage();
 
     // Packet: [0x01, Length, Code...]
     // Length = 6 (code)
@@ -383,27 +500,25 @@ async function createCode() {
         return;
     }
 
+    // Save to storage
+    storedData.configKey = configKey;
+    storedData.createdCodes.push({
+        code: newCode,
+        type: type,
+        index: index,
+        date: Date.now()
+    });
+    saveStorage();
+
     let opcode;
     if (type === 'master') opcode = OP_CREATE_MASTER;
     else if (type === 'single') opcode = OP_CREATE_SINGLE;
     else if (type === 'multi') opcode = OP_CREATE_MULTI;
 
-    // Calculate length
-    // Base: Opcode(1) + Length(1) + Key(8) + Code(6) + Checksum(1) = 17
-    // Master adds Index(1) = 18
-    const length = type === 'master' ? 18 : 17;
-    const payloadLength = type === 'master' ? 16 : 15; // Key(8) + Code(6) + [Index(1)] + Checksum(1) ?? No, Length usually excludes Opcode/Length/Checksum bytes in some protocols, but here doc says "Length" field.
-    // Doc says: [Opcode][Length][ConfigKey][Code][Index?][Checksum]
-    // Let's assume Length is the number of bytes following the Length byte, excluding Checksum? Or including?
-    // Re-reading doc:
-    // 0x11: [0x11][LENGTH][CONFIG_KEY(8)][CODE(6)][INDEX(1)][CHECKSUM] -> Total 18.
-    // So Length byte value?
-    // 0x12: [0x12][LENGTH][CONFIG_KEY(8)][CODE(6)][CHECKSUM] -> Total 17.
-
     // Let's look at examples in doc.
     // 0x16 example: 16 0a ... (10 bytes payload) -> 8 key + 1 type + 1 enabled.
     // So Length seems to be payload length (excluding checksum).
-
+    
     // For 0x11: Key(8) + Code(6) + Index(1) = 15 bytes.
     // For 0x12/0x13: Key(8) + Code(6) = 14 bytes.
 
@@ -455,30 +570,37 @@ async function requestLogs() {
 
 function parseLogEvent(data) {
     const opcode = data[0];
-    const length = data[1];
-    const payload = data.slice(2, 2 + length);
+    const opName = OPCODE_NAMES[opcode] || `UNKNOWN_OP(0x${opcode.toString(16).toUpperCase()})`;
+    
+    // Parse details
+    const details = parsePacketDetails(opcode, data);
+    
+    // Create Entry Object
+    const entry = {
+        timestamp: Date.now(), // Approximate capture time
+        type: opName,
+        opcode: opcode,
+        details: details,
+        raw: Array.from(data).map(b => b.toString(16).padStart(2, '0')).join('')
+    };
 
+    // Add to storage if not duplicate (simple check based on raw + approximate timestamp? No, logs might be same. 
+    // Ideally we should deduce real timestamp from "Age", but "Age" changes.
+    // Let's just append for now as requested.
+    storedData.logs.push(entry);
+    saveStorage();
+
+    // Update UI
     const container = document.getElementById('logsContainer');
     const div = document.createElement('div');
     div.style.borderBottom = '1px solid #eee';
     div.style.padding = '5px';
-
-    let text = `Op: 0x${opcode.toString(16).toUpperCase()} `;
-
-    if (opcode === 0x86) { // CODE_BLE_VALID
-        // Payload: ... Code(6) Timestamp(8) ...
-        // Based on doc: [Flags?][Code 6][Timestamp 8]
-        // Example: 0004b2 383632303036 0000dc3b76ad6c
-        // Offset 3 is code start?
-        // Let's try to extract ASCII code if possible
-        // It's hard to parse exactly without full spec of payload offsets, but we can try to find the code.
-        text += "(BLE Valid)";
-    } else if (opcode === 0x91) {
-        text += "(Door Open)";
-    } else if (opcode === 0x90) {
-        text += "(Door Close)";
-    }
-
-    div.textContent = text + " " + Array.from(data).map(b => b.toString(16).padStart(2,'0')).join('');
+    div.style.fontSize = '12px';
+    
+    let text = `[New] ${opName}`;
+    if (details) text += ` - ${details}`;
+    
+    div.textContent = text;
     container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
 }
