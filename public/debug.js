@@ -5,6 +5,7 @@ let mainService = null;
 let writeChar = null;
 let notifyChar = null;
 let isWaitingForClose = false;
+let currentStepId = 'step1';
 
 let collectedData = {
     timestamp: null,
@@ -37,7 +38,7 @@ const nextStep1Btn = document.getElementById('nextStep1');
 const openCodeInput = document.getElementById('openCode');
 const openDoorBtn = document.getElementById('openDoorBtn');
 const doorStatus = document.getElementById('doorStatus');
-const readBatteryBtn = document.getElementById('readBatteryBtn');
+const batteryStatus = document.getElementById('batteryStatus');
 const batteryResult = document.getElementById('batteryResult');
 const nextStep2Btn = document.getElementById('nextStep2');
 const prevStep2Btn = document.getElementById('prevStep2');
@@ -53,6 +54,7 @@ const jsonRecap = document.getElementById('jsonRecap');
 
 // Navigation
 function showStep(stepId) {
+    currentStepId = stepId;
     document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
     document.getElementById(stepId).classList.add('active');
 }
@@ -74,23 +76,25 @@ copyJsonBtn.addEventListener('click', () => {
 });
 
 // Step 1: Connection & Device Info
-connectBtn.addEventListener('click', async () => {
-    // Reset Data
-    collectedData = {
-        timestamp: new Date().toISOString(),
-        deviceInfo: {},
-        userInputs: {
-            boksType: document.getElementById('boksType').value,
-            hasScale: document.getElementById('hasScale').checked
-        },
-        extraData: {},
-        batteryData: {},
-        questionAnswers: []
-    };
+async function connectToBoks(resetData = true) {
+    if (resetData) {
+        // Reset Data
+        collectedData = {
+            timestamp: new Date().toISOString(),
+            deviceInfo: {},
+            userInputs: {
+                boksType: document.getElementById('boksType').value,
+                hasScale: document.getElementById('hasScale').checked
+            },
+            extraData: {},
+            batteryData: {},
+            questionAnswers: []
+        };
+    }
 
     try {
         connectionStatus.style.display = 'block';
-        connectionStatus.textContent = 'Recherche de Boks...';
+        connectionStatus.textContent = resetData ? 'Recherche de Boks...' : 'Reconnexion...';
         connectionStatus.className = 'status-message';
 
         device = await navigator.bluetooth.requestDevice({
@@ -105,6 +109,8 @@ connectBtn.addEventListener('click', async () => {
 
         connectionStatus.textContent = 'Connecté ! Lecture des informations...';
         connectionStatus.className = 'status-message success';
+        
+        hideReconnectUI();
         
         const version = await fetchDeviceInfo();
         
@@ -124,14 +130,81 @@ connectBtn.addEventListener('click', async () => {
         nextStep1Btn.disabled = false;
 
     } catch (error) {
+        console.error(error);
         connectionStatus.textContent = 'Erreur : ' + error;
         connectionStatus.className = 'status-message error';
+        if (!resetData) {
+            alert('Impossible de se reconnecter : ' + error);
+        }
     }
-});
+}
+
+connectBtn.addEventListener('click', () => connectToBoks(true));
 
 function onDisconnected() {
-    alert('Appareil déconnecté');
-    location.reload();
+    isWaitingForClose = false;
+    if (currentStepId === 'step4') return;
+
+    showReconnectUI();
+    
+    if (currentStepId === 'step1') {
+        connectionStatus.textContent = 'Appareil déconnecté.';
+        connectionStatus.className = 'status-message error';
+    }
+}
+
+function showReconnectUI() {
+    let banner = document.getElementById('reconnect-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'reconnect-banner';
+        banner.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #d93025;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        `;
+        
+        const text = document.createElement('span');
+        text.textContent = 'Appareil déconnecté';
+        text.style.fontWeight = 'bold';
+        
+        const btn = document.createElement('button');
+        btn.textContent = 'Reconnecter';
+        btn.style.cssText = `
+            background-color: white;
+            color: #d93025;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 0;
+        `;
+        btn.onclick = () => connectToBoks(false);
+        
+        banner.appendChild(text);
+        banner.appendChild(btn);
+        document.body.appendChild(banner);
+    }
+    banner.style.display = 'flex';
+}
+
+function hideReconnectUI() {
+    const banner = document.getElementById('reconnect-banner');
+    if (banner) {
+        banner.style.display = 'none';
+    }
 }
 
 async function fetchDeviceInfo() {
@@ -355,6 +428,12 @@ openDoorBtn.addEventListener('click', async () => {
     doorStatus.style.display = 'block';
     doorStatus.textContent = 'Envoi de la commande d\'ouverture...';
     doorStatus.className = 'status-message';
+    
+    batteryStatus.style.display = 'block';
+    batteryStatus.textContent = 'En attente de fermeture de la porte...';
+    batteryStatus.className = 'status-message';
+    batteryResult.style.display = 'none';
+
     isWaitingForClose = true; // Enable auto-battery read on close
 
     try {
@@ -384,6 +463,7 @@ function handleNotifications(event) {
         // Auto-read battery when door closes if we were waiting for it
         if (!isOpen && isWaitingForClose) {
             isWaitingForClose = false;
+            batteryStatus.textContent = 'Lecture de la batterie en cours...';
             setTimeout(() => {
                 readBattery();
             }, 500); // Small delay to ensure stable state
@@ -471,13 +551,17 @@ async function readBattery() {
             collectedData.batteryData.error = 'Characteristic not found';
         }
 
+        batteryStatus.textContent = 'Lecture terminée';
+        batteryStatus.className = 'status-message success';
+
     } catch (e) {
         batteryResult.textContent = 'Erreur de lecture : ' + e;
         collectedData.batteryData.error = e.toString();
+
+        batteryStatus.textContent = 'Erreur lors de la lecture de la batterie';
+        batteryStatus.className = 'status-message error';
     }
 }
-
-readBatteryBtn.addEventListener('click', readBattery);
 
 function generateRecap() {
     jsonRecap.value = JSON.stringify(collectedData, null, 2);
