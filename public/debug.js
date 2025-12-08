@@ -40,6 +40,7 @@ const openDoorBtn = document.getElementById('openDoorBtn');
 const doorStatus = document.getElementById('doorStatus');
 const batteryStatus = document.getElementById('batteryStatus');
 const batteryResult = document.getElementById('batteryResult');
+const standardBatteryResult = document.getElementById('standardBatteryResult');
 const nextStep2Btn = document.getElementById('nextStep2');
 const prevStep2Btn = document.getElementById('prevStep2');
 
@@ -306,6 +307,7 @@ async function fetchExtraData(version) {
             console.error("Error requesting code count", e);
         }
     }
+
 }
 
 function compareVersions(v1, v2) {
@@ -460,6 +462,7 @@ function handleNotifications(event) {
         doorStatus.textContent = `Porte ${isOpen ? 'OUVERTE' : 'FERMÉE'}`;
         doorStatus.className = isOpen ? 'status-message success' : 'status-message';
 
+
         // Auto-read battery when door closes if we were waiting for it
         if (!isOpen && isWaitingForClose) {
             isWaitingForClose = false;
@@ -498,8 +501,25 @@ function handleNotifications(event) {
 
 async function readBattery() {
     batteryResult.style.display = 'block';
-    batteryResult.textContent = 'Lecture en cours...';
+    standardBatteryResult.style.display = 'block';
+    batteryResult.textContent = 'Lecture propriétaire en cours...';
+    standardBatteryResult.textContent = 'Lecture standard en cours...';
 
+    // 1. Read Standard Battery Service
+    try {
+        const service = await server.getPrimaryService(BATTERY_SERVICE_UUID);
+        const char = await service.getCharacteristic(BATTERY_LEVEL_CHAR_UUID);
+        const value = await char.readValue();
+        const level = value.getUint8(0);
+        
+        standardBatteryResult.textContent = `Niveau: ${level}%`;
+        collectedData.batteryData.standardLevel = level;
+    } catch (e) {
+        standardBatteryResult.textContent = 'Non disponible ou erreur: ' + e.message;
+        collectedData.batteryData.standardError = e.message;
+    }
+
+    // 2. Read Proprietary Battery Characteristic
     try {
         const services = await server.getPrimaryServices();
         let found = false;

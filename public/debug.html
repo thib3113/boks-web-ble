@@ -207,7 +207,17 @@
             <div class="section" style="margin-top: 20px;">
                 <h3>État de la Batterie</h3>
                 <div id="batteryStatus" class="status-message" style="display:none;"></div>
-                <div id="batteryResult" class="log-container" style="display:none;"></div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <h4>Service Standard (0x180F)</h4>
+                        <div id="standardBatteryResult" class="log-container" style="display:none; height: 100px;"></div>
+                    </div>
+                    <div>
+                        <h4>Service Propriétaire (0x0004)</h4>
+                        <div id="batteryResult" class="log-container" style="display:none; height: 100px;"></div>
+                    </div>
+                </div>
             </div>
 
             <div class="nav-buttons">
