@@ -547,7 +547,23 @@ async function readBattery() {
                     const last = v[4] * 100;
                     const temp = v[5] - 25;
                     
-                    batteryResult.textContent += `\n\nInterprétation:\nFirst: ${first}mV\nMin: ${min}mV\nMean: ${mean}mV\nMax: ${max}mV\nLast: ${last}mV\nTemp: ${temp}°C`;
+                    const toV = (mv) => (mv / 1000).toFixed(1);
+
+                    batteryResult.textContent += `\n\nInterprétation:`;
+                    batteryResult.textContent += `\nFirst: ${first} mV (${toV(first)} V)`;
+                    batteryResult.textContent += `\nMin: ${min} mV (${toV(min)} V)`;
+                    batteryResult.textContent += `\nMean: ${mean} mV (${toV(mean)} V)`;
+                    batteryResult.textContent += `\nMax: ${max} mV (${toV(max)} V)`;
+                    batteryResult.textContent += `\nLast: ${last} mV (${toV(last)} V)`;
+
+                    if (last < 9000) {
+                        batteryResult.textContent += ` ⚠️ Tension faible !`;
+                    }
+
+                    const percentage = calculateAAAPercentage(last);
+                    batteryResult.textContent += `\nEstimation (8x AAA): ${percentage}%`;
+
+                    batteryResult.textContent += `\nTemp: ${temp}°C`;
                     
                     collectedData.batteryData.parsed = {
                         first_mV: first,
@@ -555,6 +571,7 @@ async function readBattery() {
                         mean_mV: mean,
                         max_mV: max,
                         last_mV: last,
+                        estimatedPercentage: percentage,
                         temp_C: temp
                     };
                 }
@@ -631,3 +648,14 @@ exploreServiceBtn.addEventListener('click', async () => {
         serviceExplorationLog.textContent += `\nErreur : ${e.message}`;
     }
 });
+
+function calculateAAAPercentage(mV) {
+    if (mV >= 12500) return 100;
+    if (mV >= 12000) return 90;
+    if (mV >= 11500) return 80;
+    if (mV >= 11000) return 60;
+    if (mV >= 10500) return 40;
+    if (mV >= 10000) return 20;
+    if (mV >= 9500) return 10;
+    return 0;
+}
