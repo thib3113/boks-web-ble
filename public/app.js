@@ -21,6 +21,23 @@ const deviceInfoDiv = document.getElementById('deviceInfo');
 const consoleLog = document.getElementById('consoleLog');
 const clearLogBtn = document.getElementById('clearLogBtn');
 
+// Battery UI Elements
+const batteryFormatEl = document.getElementById('batteryFormat');
+const batteryTempEl = document.getElementById('batteryTemp');
+const batVFirstEl = document.getElementById('batVFirst');
+const batVMinEl = document.getElementById('batVMin');
+const batVMeanEl = document.getElementById('batVMean');
+const batVMaxEl = document.getElementById('batVMax');
+const batVLastEl = document.getElementById('batVLast');
+const batteryAlertEl = document.getElementById('batteryAlert');
+const batteryAlertMsgEl = document.getElementById('batteryAlertMsg');
+const batteryWaitingEl = document.getElementById('batteryWaiting');
+const batteryDataEl = document.getElementById('batteryData');
+const batteryTypeSelector = document.getElementById('batteryTypeSelector');
+const batteryImage = document.getElementById('batteryImage');
+
+let lastBatteryData = null;
+
 // Event Listeners
 connectBtn.addEventListener('click', connect);
 disconnectBtn.addEventListener('click', disconnect);
@@ -33,6 +50,19 @@ document.getElementById('getLogsBtn').addEventListener('click', getLogs);
 document.getElementById('codeType').addEventListener('change', (e) => {
     const indexGroup = document.getElementById('indexGroup');
     indexGroup.style.display = e.target.value === 'master' ? 'flex' : 'none';
+});
+
+batteryTypeSelector.addEventListener('change', () => {
+    const type = batteryTypeSelector.value;
+    if (type === 'aaa') {
+        batteryImage.src = 'https://www.batteries4pro.com/25694-pos_thickbox/10-piles-alcaline-industrial-pro-varta-aaa-lr03.jpg';
+    } else {
+        batteryImage.src = 'https://www.mega-piles.com/img/p/61/4587_default.jpg';
+    }
+    // Re-parse with new type if data available
+    if (lastBatteryData) {
+        parseBatteryInfo(lastBatteryData);
+    }
 });
 
 // Logging
@@ -194,6 +224,9 @@ function handleNotifications(event) {
         if (value.length >= 4) {
             const isOpen = value[3] === 1;
             log(`Door is ${isOpen ? 'OPEN' : 'CLOSED'}`, 'info');
+
+            // Trigger battery update after door event (wait for stabilization)
+            setTimeout(updateBatteryInfo, 500);
         }
     } else if (opcode === OP_END_HISTORY) {
         log('End of history received', 'info');
@@ -211,11 +244,147 @@ async function sendPacket(packet) {
     }
 }
 
+// Battery Parsing Logic
+function parseBatteryInfo(value) {
+    const data = new Uint8Array(value.buffer);
+    const len = data.length;
+    let format = 'Unknown';
+    let temp = null;
+    let voltages = { first: '-', min: '-', mean: '-', max: '-', last: '-' };
+    let alertVoltage = null;
+
+    // Reset Alert
+    batteryAlertEl.style.display = 'none';
+    batteryWaitingEl.style.display = 'none';
+    batteryDataEl.style.display = 'block';
+
+    if (len === 6) {
+        format = 'measures-first-min-mean-max-last';
+        // Values are in deci-volts (e.g. 42 = 4.2V). Convert to mV (* 100).
+        voltages.first = data[0] * 100;
+        voltages.min = data[1] * 100;
+        voltages.mean = data[2] * 100;
+        voltages.max = data[3] * 100;
+        voltages.last = data[4] * 100;
+
+        temp = data[5] - 25;
+
+        // Alert on Min or Last
+        alertVoltage = Math.min(voltages.min, voltages.last);
+
+    } else if (len === 4) {
+        format = 'measures-t1-t5-t10';
+        voltages.first = data[0] * 100 + ' (T1)';
+        voltages.min = data[1] !== 255 ? data[1] * 100 + ' (T5)' : '-';
+        voltages.mean = data[2] !== 255 ? data[2] * 100 + ' (T10)' : '-';
+
+        temp = data[3] - 25;
+
+        if (data[0] > 0) alertVoltage = data[0] * 100;
+
+    } else if (len === 1) {
+        format = 'measure-single';
+        voltages.first = data[0] + '%'; // Standard level
+    }
+
+    // Update UI
+    batteryFormatEl.textContent = format;
+    batteryTempEl.textContent = temp !== null ? `${temp}°C` : '-';
+
+    batVFirstEl.textContent = voltages.first;
+    batVMinEl.textContent = voltages.min;
+    batVMeanEl.textContent = voltages.mean;
+    batVMaxEl.textContent = voltages.max;
+    batVLastEl.textContent = voltages.last;
+
+    // Check Alert based on Selected Battery Type
+    lastBatteryData = value;
+    const selectedType = batteryTypeSelector.value;
+    const currentLevel = data[0];
+
+    if (alertVoltage !== null && alertVoltage > 0) {
+        let status = 'OK';
+
+        if (selectedType === 'aaa') {
+            // === 8x AAA LOGIC ===
+            if (alertVoltage < 7200) {
+                showAlert('#b71c1c', '#ffebee', '#b71c1c',
+                    `<strong>EMPTY (${alertVoltage}mV):</strong> Electronics failing. Replace 8x AAA immediately.`);
+                log(`BATTERY (AAA) CUTOFF: ${alertVoltage}mV`, 'error');
+                status = 'CUTOFF';
+            } else if (alertVoltage < 8000) {
+                showAlert('#ef5350', '#ffebee', '#c62828',
+                    `CRITICAL (${alertVoltage}mV): Shutdown imminent. Leakage risk. Replace 8x AAA.`);
+                log(`BATTERY (AAA) ALARM: ${alertVoltage}mV`, 'warning');
+                status = 'ALARM';
+            } else if (alertVoltage < 9600) {
+                showAlert('#ffb74d', '#fff3e0', '#e65100',
+                    `LOW (${alertVoltage}mV): ~20-30% remaining. Plan replacement.`);
+                log(`BATTERY (AAA) WARNING: ${alertVoltage}mV`, 'warning');
+                status = 'WARNING';
+            } else {
+                batteryAlertEl.style.display = 'none';
+            }
+        } else {
+            // === LSH14 LOGIC ===
+
+            // Special Case: Config Mismatch (Level 0% but Voltage Good)
+            if (currentLevel === 0 && alertVoltage > 3300) {
+                 showAlert('#ffb74d', '#fff3e0', '#e65100',
+                    `<strong>CONFIG MISMATCH?</strong> Voltage (${alertVoltage}mV) is good for LSH14, but Level is 0% (AAA scale). Check device config.`);
+                 log(`BATTERY MISMATCH: ${alertVoltage}mV / 0%`, 'warning');
+                 status = 'MISMATCH';
+            }
+            else if (alertVoltage < 3000) {
+                showAlert('#ef5350', '#ffebee', '#c62828',
+                    `<strong>CRITICAL (${alertVoltage}mV):</strong> Battery empty (<3.0V). Drop to 0V imminent. Replace LSH14 immediately.`);
+                log(`BATTERY (LSH14) CRITICAL: ${alertVoltage}mV`, 'error');
+                status = 'CRITICAL';
+            } else if (alertVoltage <= 3300) {
+                showAlert('#ffb74d', '#fff3e0', '#e65100',
+                    `URGENT (${alertVoltage}mV): Leaving stable plateau. <5% remaining. Replace LSH14 immediately.`);
+                log(`BATTERY (LSH14) WARNING: ${alertVoltage}mV`, 'warning');
+                status = 'WARNING';
+            } else {
+                batteryAlertEl.style.display = 'none';
+            }
+        }
+
+        // Update format text
+        batteryFormatEl.textContent = `${format} [${selectedType.toUpperCase()}]`;
+    }
+}
+
+function showAlert(borderColor, bgColor, textColor, htmlMsg) {
+    batteryAlertEl.style.display = 'block';
+    batteryAlertEl.style.borderColor = borderColor;
+    batteryAlertEl.style.backgroundColor = bgColor;
+    batteryAlertEl.style.color = textColor;
+    batteryAlertMsgEl.innerHTML = htmlMsg;
+}
+
+async function updateBatteryInfo() {
+    log('Updating Battery Info...', 'info');
+    try {
+        // Try reading from Main Service (where custom char usually resides)
+        // Ensure 'service' is the Main Service (A763...)
+        if (!service) return;
+
+        const char = await service.getCharacteristic(CUSTOM_BATTERY_CHAR_UUID);
+        const value = await char.readValue();
+        parseBatteryInfo(value);
+        log('Battery Info Updated', 'info');
+    } catch (e) {
+        log('Failed to read Custom Battery Info: ' + e, 'warning');
+        // If failed, maybe try Battery Service? Already done in initial.
+    }
+}
+
 // Device Info Functions
 async function fetchInitialDeviceInfo() {
     log('Fetching Initial Device Info...', 'info');
 
-    // 1. Get Battery Level
+    // 1. Get Battery Level (Standard)
     try {
         const batteryService = await server.getPrimaryService(BATTERY_SERVICE_UUID);
         const batteryChar = await batteryService.getCharacteristic(BATTERY_LEVEL_CHAR_UUID);
@@ -227,6 +396,10 @@ async function fetchInitialDeviceInfo() {
         log('Failed to get Battery Level: ' + e, 'error');
         document.getElementById('batteryLevel').textContent = 'Error';
     }
+
+    // NOTE: Advanced Battery Info is NOT fetched here.
+    // It requires a fresh door opening event to be accurate.
+    // Use the "Waiting for door opening..." placeholder.
 
     // 2. Get Device Information
     try {

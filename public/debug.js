@@ -602,19 +602,34 @@ async function readBattery() {
                         batteryResult.textContent += ` ⚠️ Tension faible !`;
                     }
 
-                    const percentage = calculateAAAPercentage(last);
-                    batteryResult.textContent += `\nEstimation (8x AAA): ${percentage}%`;
+                    const batteryType = document.getElementById('batteryTypeSelector').value;
+                    
+                    if (batteryType === 'aaa') {
+                        const percentage = calculateAAAPercentage(last);
+                        batteryResult.textContent += `\nEstimation (8x AAA): ${percentage}%`;
+                    } else if (batteryType === 'lsh14') {
+                        batteryResult.textContent += `\nType: LSH14 (Lithium)`;
+                        if (last < 3000) {
+                             batteryResult.textContent += `\n⚠️ CRITIQUE: <3.0V - Remplacement immédiat !`;
+                        } else if (last <= 3300) {
+                             batteryResult.textContent += `\n⚠️ AVERTISSEMENT: Fin de plateau (<3.3V) - Remplacement bientôt nécessaire.`;
+                        } else {
+                             batteryResult.textContent += `\nÉtat: OK (>3.3V)`;
+                        }
+                    }
 
                     batteryResult.textContent += `\nTemp: ${temp}°C`;
 
                     collectedData.batteryData.parsed = {
                         format: format,
+                        batteryType: batteryType,
                         first_mV: first,
                         min_mV: min,
                         mean_mV: mean,
                         max_mV: max,
                         last_mV: last,
-                        estimatedPercentage: percentage,
+                        // estimatedPercentage is only relevant for AAA in this simple logic
+                        estimatedPercentage: batteryType === 'aaa' ? calculateAAAPercentage(last) : null, 
                         temp_C: temp
                     };
                 } else {

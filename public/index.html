@@ -164,10 +164,75 @@
                 <label>Battery Level:</label>
                 <span id="batteryLevel">-</span>
             </div>
-            <div id="deviceInfoContainer">
+            
+            <div id="batteryAdvanced" style="border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px;">
+                <h3>Advanced Battery Info</h3>
+                <p style="font-size: 0.9em; color: #666; font-style: italic;">
+                    (Requires door opening to update)
+                </p>
+                
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <label>Battery Type:</label>
+                    <select id="batteryTypeSelector">
+                        <option value="aaa" selected>8x AAA (Standard)</option>
+                        <option value="lsh14">LSH14 (Lithium)</option>
+                    </select>
+                </div>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img id="batteryImage" src="https://www.batteries4pro.com/25694-pos_thickbox/10-piles-alcaline-industrial-pro-varta-aaa-lr03.jpg" alt="Battery Type" style="height: 100px; border-radius: 4px; object-fit: contain;">
+                </div>
+                
+                <div id="batteryWaiting" style="color: #1a73e8;">
+                    Waiting for door opening...
+                </div>
+
+                <div id="batteryData" style="display: none;">
+                    <div class="input-group">
+                        <label>Format:</label>
+                        <span id="batteryFormat">-</span>
+                    </div>
+                    <div class="input-group">
+                        <label>Temperature:</label>
+                        <span id="batteryTemp">-</span>
+                    </div>
+                    
+                    <div style="margin-top: 10px;">
+                        <strong>Voltages (mV):</strong>
+                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; text-align: center; margin-top: 5px; font-size: 0.9em;">
+                            <div>
+                                <div>First</div>
+                                <div id="batVFirst">-</div>
+                            </div>
+                            <div>
+                                <div>Min</div>
+                                <div id="batVMin">-</div>
+                            </div>
+                            <div>
+                                <div>Mean</div>
+                                <div id="batVMean">-</div>
+                            </div>
+                            <div>
+                                <div>Max</div>
+                                <div id="batVMax">-</div>
+                            </div>
+                            <div>
+                                <div>Last</div>
+                                <div id="batVLast">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="batteryAlert" style="display: none; margin-top: 15px; padding: 10px; background-color: #ffebee; border: 1px solid #ef9a9a; border-radius: 4px; color: #c62828;">
+                    <strong>WARNING:</strong> Low voltage detected! <br>
+                    <span id="batteryAlertMsg"></span>
+                </div>
+            </div>
+
+            <div id="deviceInfoContainer" style="margin-top: 20px;">
                 <!-- Dynamic Device Info will be inserted here -->
             </div>
-            </div>
+        </div>
 
         <div class="card disabled" id="controls">
             <div class="section">

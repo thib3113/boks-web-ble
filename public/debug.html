@@ -217,6 +217,15 @@
 
             <div class="section" style="margin-top: 20px;">
                 <h3>État de la Batterie</h3>
+
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label for="batteryTypeSelector" style="font-weight:bold;">Type de Piles :</label>
+                    <select id="batteryTypeSelector" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
+                        <option value="aaa" selected>8x AAA (Standard)</option>
+                        <option value="lsh14">LSH14 (Lithium)</option>
+                    </select>
+                </div>
+
                 <div id="batteryStatus" class="status-message" style="display:none;"></div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
