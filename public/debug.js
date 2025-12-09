@@ -70,9 +70,13 @@ finishBtn.addEventListener('click', () => {
 });
 prevStep4Btn.addEventListener('click', () => showStep('step3'));
 
-copyJsonBtn.addEventListener('click', () => {
-    jsonRecap.select();
-    document.execCommand('copy');
+copyJsonBtn.addEventListener('click', async () => {
+    if (!navigator.clipboard){
+        jsonRecap.select();
+        document.execCommand('copy');
+    } else{
+        await navigator.clipboard.writeText(jsonRecap.value).catch(err => alert(`erreur : ${JSON.stringify(err)}`));
+    }
     alert('JSON copié dans le presse-papier !');
 });
 
@@ -110,11 +114,11 @@ async function connectToBoks(resetData = true) {
 
         connectionStatus.textContent = 'Connecté ! Lecture des informations...';
         connectionStatus.className = 'status-message success';
-        
+
         hideReconnectUI();
-        
+
         const version = await fetchDeviceInfo();
-        
+
         // Setup Main Service for Step 2 & Extra Data
         mainService = await server.getPrimaryService(SERVICE_UUID);
         writeChar = await mainService.getCharacteristic(WRITE_CHAR_UUID);
@@ -147,7 +151,7 @@ function onDisconnected() {
     if (currentStepId === 'step4') return;
 
     showReconnectUI();
-    
+
     if (currentStepId === 'step1') {
         connectionStatus.textContent = 'Appareil déconnecté.';
         connectionStatus.className = 'status-message error';
@@ -175,11 +179,11 @@ function showReconnectUI() {
             gap: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         `;
-        
+
         const text = document.createElement('span');
         text.textContent = 'Appareil déconnecté';
         text.style.fontWeight = 'bold';
-        
+
         const btn = document.createElement('button');
         btn.textContent = 'Reconnecter';
         btn.style.cssText = `
@@ -193,7 +197,7 @@ function showReconnectUI() {
             margin: 0;
         `;
         btn.onclick = () => connectToBoks(false);
-        
+
         banner.appendChild(text);
         banner.appendChild(btn);
         document.body.appendChild(banner);
@@ -286,7 +290,7 @@ async function fetchDeviceInfo() {
 
 async function fetchExtraData(version) {
     extraDataGrid.innerHTML = '';
-    
+
     // 1. Get Logs Count
     try {
         const packet = new Uint8Array([OP_GET_LOGS_COUNT]);
@@ -359,7 +363,7 @@ function addQuestion(text, expectedAnswer) {
     const btnYes = document.createElement('button');
     btnYes.textContent = 'Oui';
     btnYes.style.marginRight = '10px';
-    
+
     const btnNo = document.createElement('button');
     btnNo.textContent = 'Non';
 
@@ -370,7 +374,7 @@ function addQuestion(text, expectedAnswer) {
     const handleAnswer = (answer) => {
         btnYes.disabled = true;
         btnNo.disabled = true;
-        
+
         collectedData.questionAnswers.push({
             question: text,
             answer: answer,
@@ -430,7 +434,7 @@ openDoorBtn.addEventListener('click', async () => {
     doorStatus.style.display = 'block';
     doorStatus.textContent = 'Envoi de la commande d\'ouverture...';
     doorStatus.className = 'status-message';
-    
+
     batteryStatus.style.display = 'block';
     batteryStatus.textContent = 'En attente de fermeture de la porte...';
     batteryStatus.className = 'status-message';
@@ -486,7 +490,7 @@ function handleNotifications(event) {
     } else if (opcode === OP_NOTIFY_CODES_COUNT) {
         const masterCount = (value[2] << 8) | value[3];
         const singleCount = (value[4] << 8) | value[5];
-        
+
         let display = `Master: ${masterCount}, Single-Use: ${singleCount}`;
         collectedData.extraData.codes = { master: masterCount, single: singleCount };
 
@@ -511,7 +515,7 @@ async function readBattery() {
         const char = await service.getCharacteristic(BATTERY_LEVEL_CHAR_UUID);
         const value = await char.readValue();
         const level = value.getUint8(0);
-        
+
         standardBatteryResult.textContent = `Niveau: ${level}%`;
         collectedData.batteryData.standardLevel = level;
     } catch (e) {
@@ -523,7 +527,7 @@ async function readBattery() {
     try {
         const services = await server.getPrimaryServices();
         let found = false;
-        
+
         for (const s of services) {
             try {
                 const char = await s.getCharacteristic('00000004-0000-1000-8000-00805f9b34fb');
@@ -531,14 +535,52 @@ async function readBattery() {
                 const hex = Array.from(new Uint8Array(value.buffer))
                     .map(b => b.toString(16).padStart(2, '0').toUpperCase())
                     .join(' ');
-                
+
                 batteryResult.textContent = `Service: ${s.uuid}\nUUID: ${char.uuid}\nValeur Hex: ${hex}`;
-                
+
                 collectedData.batteryData.rawHex = hex;
                 collectedData.batteryData.serviceUuid = s.uuid;
 
-                // Parse if it matches expected length (6 bytes)
-                if (value.byteLength === 6) {
+                // Format detection based on byte length
+                const format = value.byteLength === 1 ? "Single Measure" :
+                              value.byteLength === 4 ? "T1/T5/T10" :
+                              value.byteLength === 6 ? "Min/Mean/Max" : "Unknown";
+                
+                batteryResult.textContent += `\n\nFormat détecté: ${format} (${value.byteLength} bytes)`;
+
+                // Parse based on format
+                if (value.byteLength === 1) {
+                    // Single Measure: Level
+                    const level = value.getUint8(0);
+                    batteryResult.textContent += `\n\nInterprétation:`;
+                    batteryResult.textContent += `\nLevel: ${level}%`;
+                    
+                    collectedData.batteryData.parsed = {
+                        format: format,
+                        level: level
+                    };
+                } else if (value.byteLength === 4) {
+                    // T1/T5/T10: Level, T1, T5, Temp
+                    const level = value.getUint8(0);
+                    const t1 = value.getUint8(1);
+                    const t5 = value.getUint8(2);
+                    const temp = value.getUint8(3) - 25;
+                    
+                    batteryResult.textContent += `\n\nInterprétation:`;
+                    batteryResult.textContent += `\nLevel: ${level}%`;
+                    batteryResult.textContent += `\nT1: ${t1}`;
+                    batteryResult.textContent += `\nT5: ${t5}`;
+                    batteryResult.textContent += `\nTemp: ${temp}°C`;
+                    
+                    collectedData.batteryData.parsed = {
+                        format: format,
+                        level: level,
+                        t1: t1,
+                        t5: t5,
+                        temp_C: temp
+                    };
+                } else if (value.byteLength === 6) {
+                    // Min/Mean/Max: First, Min, Mean, Max, Last, Temp
                     const v = new Uint8Array(value.buffer);
                     const first = v[0] * 100;
                     const min = v[1] * 100;
@@ -546,7 +588,7 @@ async function readBattery() {
                     const max = v[3] * 100;
                     const last = v[4] * 100;
                     const temp = v[5] - 25;
-                    
+
                     const toV = (mv) => (mv / 1000).toFixed(1);
 
                     batteryResult.textContent += `\n\nInterprétation:`;
@@ -564,8 +606,9 @@ async function readBattery() {
                     batteryResult.textContent += `\nEstimation (8x AAA): ${percentage}%`;
 
                     batteryResult.textContent += `\nTemp: ${temp}°C`;
-                    
+
                     collectedData.batteryData.parsed = {
+                        format: format,
                         first_mV: first,
                         min_mV: min,
                         mean_mV: mean,
@@ -574,15 +617,21 @@ async function readBattery() {
                         estimatedPercentage: percentage,
                         temp_C: temp
                     };
+                } else {
+                    batteryResult.textContent += `\n\nFormat inconnu - impossible d'interpréter les données`;
+                    collectedData.batteryData.parsed = {
+                        format: "Unknown",
+                        rawLength: value.byteLength
+                    };
                 }
-                
+
                 found = true;
                 break;
             } catch (e) {
                 // Not in this service
             }
         }
-        
+
         if (!found) {
             batteryResult.textContent = 'Caractéristique 00000004... non trouvée dans les services exposés.';
             collectedData.batteryData.error = 'Characteristic not found';
@@ -617,7 +666,7 @@ exploreServiceBtn.addEventListener('click', async () => {
 
         for (const char of characteristics) {
             serviceExplorationLog.textContent += `\nChar: ${char.uuid}`;
-            
+
             // Try to read
             if (char.properties.read) {
                 try {
@@ -626,7 +675,7 @@ exploreServiceBtn.addEventListener('click', async () => {
                         .map(b => b.toString(16).padStart(2, '0').toUpperCase())
                         .join(' ');
                     serviceExplorationLog.textContent += `\n  Value (Hex): ${hex}`;
-                    
+
                     // Try text decode
                     try {
                         const text = new TextDecoder('utf-8').decode(value);

@@ -1,5 +1,9 @@
 # Interface Web BLE Boks
 
+<p align="center">
+  <img src="public/icon.png" alt="Boks Web BLE Icon" width="128" height="128">
+</p>
+
 Une interface web simple pour interagir avec les boîtes à colis connectées Boks via Web Bluetooth.
 
 ## Fonctionnalités
@@ -32,6 +36,10 @@ Ce projet est le résultat d'une rétro-ingénierie et n'est **pas affilié à B
 ---
 
 # Boks Web BLE Interface
+
+<p align="center">
+  <img src="public/icon.png" alt="Boks Web BLE Icon" width="128" height="128">
+</p>
 
 A simple web interface to interact with Boks smart parcel boxes via Web Bluetooth.
 
