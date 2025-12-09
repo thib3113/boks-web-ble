@@ -5,7 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Boks Debug Wizard</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="icon.svg" type="image/svg+xml">
+
+    <!-- Favicons for various browsers and devices -->
+    <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="icon-48.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="icon-128.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
+
+    <!-- Apple Touch Icon (for iOS devices) -->
+    <link rel="apple-touch-icon" href="icon.png">
+
     <meta name="theme-color" content="#1a73e8">
     <style>
         body {
@@ -124,7 +135,7 @@
             justify-content: space-between;
             margin-top: 20px;
         }
-        
+
         input {
             padding: 8px;
             border: 1px solid #ddd;
@@ -164,14 +175,14 @@
 
             <button id="connectBtn">Connecter</button>
             <div id="connectionStatus" class="status-message" style="display:none;"></div>
-            
+
             <div id="deviceInfoResults" style="display:none;">
                 <h3>Informations Appareil</h3>
                 <div class="info-grid" id="deviceInfoGrid">
                     <!-- Populated by JS -->
                 </div>
                 <div id="deviceInfoCheck" class="status-message" style="display:none;"></div>
-                
+
                 <div id="extraDataResults" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
                     <h4>Données Supplémentaires</h4>
                     <div class="info-grid" id="extraDataGrid"></div>
@@ -195,7 +206,7 @@
                 <span class="step-title">Étape 2 : Ouverture/Fermeture & Batterie</span>
                 <span>2/3</span>
             </div>
-            
+
             <div class="section">
                 <h3>Test d'Ouverture</h3>
                 <p>Entrez un code valide pour ouvrir la porte.</p>
@@ -207,7 +218,7 @@
             <div class="section" style="margin-top: 20px;">
                 <h3>État de la Batterie</h3>
                 <div id="batteryStatus" class="status-message" style="display:none;"></div>
-                
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
                         <h4>Service Standard (0x180F)</h4>
@@ -232,9 +243,9 @@
                 <span class="step-title">Étape 3 : Débogage Avancé (nRF Connect)</span>
                 <span>3/3</span>
             </div>
-            
+
             <p>Pour aller plus loin, nous vous recommandons d'utiliser l'application <strong>nRF Connect for Mobile</strong>.</p>
-            
+
             <ul>
                 <li><a href="https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp" target="_blank">Android (Google Play)</a></li>
                 <li><a href="https://apps.apple.com/us/app/nrf-connect-for-mobile/id1054362403" target="_blank">iOS (App Store)</a></li>
@@ -242,7 +253,7 @@
 
             <h3>Exploration des Services</h3>
             <p>Vous pouvez explorer manuellement les services en entrant leur UUID ci-dessous.</p>
-            
+
             <div class="input-group">
                 <label>UUID du Service :</label>
                 <input type="text" id="customServiceUuid" placeholder="ex: 0000180f-0000-1000-8000-00805f9b34fb" list="knownServices">
@@ -268,12 +279,12 @@
                 <span class="step-title">Étape 4 : Récapitulatif</span>
                 <span>4/4</span>
             </div>
-            
+
             <p>Voici le résumé des données collectées. Copiez ce JSON pour le partager avec le support.</p>
             <p><em>Note : Aucune donnée sensible (codes PIN, clés) n'est incluse.</em></p>
-            
+
             <textarea id="jsonRecap" style="width: 100%; height: 300px; font-family: monospace; margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" readonly></textarea>
-            
+
             <div class="nav-buttons">
                 <button id="prevStep4">Précédent</button>
                 <button id="copyJsonBtn">Copier le JSON</button>
