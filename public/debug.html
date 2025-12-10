@@ -148,6 +148,9 @@
     </style>
 </head>
 <body>
+    <div id="webBluetoothWarning" style="display:none; padding: 10px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; margin-bottom: 15px; text-align: center; font-weight: bold;">
+        <!-- Message will be inserted here by JavaScript -->
+    </div>
     <div class="container">
         <h1>Assistant de Débogage Boks</h1>
 
@@ -158,19 +161,15 @@
                 <span>1/3</span>
             </div>
             <p>Veuillez vous rapprocher de votre Boks et cliquer sur "Connecter".</p>
+
             <div class="input-group" style="margin-bottom: 15px;">
                 <label for="boksType" style="display:block; margin-bottom:5px; font-weight:bold;">Type de Boks :</label>
                 <select id="boksType" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd; width: 100%;">
-                    <option value="standard">BoksONE (Standard)</option>
-                    <option value="grand">BoksMAX (Grand)</option>
-                    <option value="hub">BoksHUB</option>
+                    <option value="s">ONE/S (Standard)</option>
+                    <option value="m">Pro Medium</option>
+                    <option value="l">Pro Large</option>
+                    <option value="xl">Pro ExtraLarge</option>
                 </select>
-            </div>
-            <div class="input-group" style="margin-bottom: 15px;">
-                <label style="font-weight:bold;">Balance intégrée ?</label>
-                <div style="margin-top:5px;">
-                    <input type="checkbox" id="hasScale" style="width:auto;"> <label for="hasScale" style="display:inline;">Oui</label>
-                </div>
             </div>
 
             <button id="connectBtn">Connecter</button>
@@ -218,12 +217,21 @@
             <div class="section" style="margin-top: 20px;">
                 <h3>État de la Batterie</h3>
 
-                <div class="input-group" style="margin-bottom: 15px;">
-                    <label for="batteryTypeSelector" style="font-weight:bold;">Type de Piles :</label>
-                    <select id="batteryTypeSelector" style="padding: 8px; border-radius: 4px; border: 1px solid #ddd;">
-                        <option value="aaa" selected>8x AAA (Standard)</option>
-                        <option value="lsh14">LSH14 (Lithium)</option>
-                    </select>
+                <div id="batteryAnalysisContainer" style="margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #fafafa; display:none;">
+                    <h4 style="margin-top:0; margin-bottom:10px;">Diagnostic Alimentation</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <div style="font-size: 0.8em; color: #666;">Déclaré / Attendu</div>
+                            <div id="batUserClaim" style="font-weight: bold;">-</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.8em; color: #666;">Détecté (Voltage)</div>
+                            <div id="batDetected" style="font-weight: bold;">-</div>
+                        </div>
+                    </div>
+                    <div id="batConsistency" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee; font-weight: 500;">
+                        <!-- Status message will go here -->
+                    </div>
                 </div>
 
                 <div id="batteryStatus" class="status-message" style="display:none;"></div>

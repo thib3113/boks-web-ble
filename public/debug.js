@@ -19,7 +19,7 @@ let collectedData = {
 // Reference Values
 const REF_VALUES = {
     'Model Number': '2.0',
-    'Firmware Revision': '10/125',
+    'Firmware Revision': ['10/125', '10/cd'],
     'Software Revision': ['4.3.3', '4.2.0'], // Array of valid versions
     'Manufacturer Name': 'BOKS'
 };
@@ -82,6 +82,20 @@ copyJsonBtn.addEventListener('click', async () => {
 
 // Step 1: Connection & Device Info
 async function connectToBoks(resetData = true) {
+    // Check Web Bluetooth API availability
+    const btStatus = checkWebBluetoothAvailability();
+    if (!btStatus.isAvailable) {
+        const warningDiv = document.getElementById('webBluetoothWarning');
+        if (warningDiv) {
+            warningDiv.innerHTML = btStatus.message;
+            warningDiv.style.display = 'block';
+        }
+        connectBtn.disabled = true; // Assumes connectBtn is available in debug.html
+        console.error('[DebugWizard] Web Bluetooth API not available:', btStatus.message);
+        return; // Stop connection attempt
+    }
+
+    console.log('[DebugWizard] Starting connection process...');
     if (resetData) {
         // Reset Data
         collectedData = {
@@ -89,7 +103,6 @@ async function connectToBoks(resetData = true) {
             deviceInfo: {},
             userInputs: {
                 boksType: document.getElementById('boksType').value,
-                hasScale: document.getElementById('hasScale').checked
             },
             extraData: {},
             batteryData: {},
@@ -106,31 +119,47 @@ async function connectToBoks(resetData = true) {
             filters: [{ services: [SERVICE_UUID] }],
             optionalServices: [BATTERY_SERVICE_UUID, DEVICE_INFO_SERVICE_UUID]
         });
+        console.log('[DebugWizard] Device selected:', device.name, device.id);
 
         device.addEventListener('gattserverdisconnected', onDisconnected);
+        console.log('[DebugWizard] Disconnect listener added.');
 
         connectionStatus.textContent = 'Connexion en cours...';
+        console.log('[DebugWizard] Connecting to GATT Server...');
         server = await device.gatt.connect();
+        console.log('[DebugWizard] Connected to GATT Server.');
 
         connectionStatus.textContent = 'Connecté ! Lecture des informations...';
         connectionStatus.className = 'status-message success';
 
         hideReconnectUI();
 
+        console.log('[DebugWizard] Fetching Device Info...');
         const version = await fetchDeviceInfo();
+        console.log('[DebugWizard] Device Info Fetched. Software Version:', version);
 
         // Setup Main Service for Step 2 & Extra Data
+        console.log('[DebugWizard] Getting Main Service (UUID:', SERVICE_UUID, ')...');
         mainService = await server.getPrimaryService(SERVICE_UUID);
+        console.log('[DebugWizard] Main Service obtained. Getting Write Characteristic (UUID:', WRITE_CHAR_UUID, ')...');
         writeChar = await mainService.getCharacteristic(WRITE_CHAR_UUID);
+        console.log('[DebugWizard] Write Characteristic obtained. Getting Notify Characteristic (UUID:', NOTIFY_CHAR_UUID, ')...');
         notifyChar = await mainService.getCharacteristic(NOTIFY_CHAR_UUID);
+        
+        console.log('[DebugWizard] Notify Characteristic obtained. Starting Notifications...');
         await notifyChar.startNotifications();
         notifyChar.addEventListener('characteristicvaluechanged', handleNotifications);
+        console.log('[DebugWizard] Notifications started and listener added.');
 
         // Fetch Extra Data
+        console.log('[DebugWizard] Fetching Extra Data...');
         await fetchExtraData(version);
+        console.log('[DebugWizard] Extra Data fetching initiated.');
 
         // Show Conditional Questions
+        console.log('[DebugWizard] Showing Conditional Questions...');
         showConditionalQuestions(version);
+        console.log('[DebugWizard] Conditional Questions displayed.');
 
         nextStep1Btn.disabled = false;
 
@@ -219,20 +248,31 @@ async function fetchDeviceInfo() {
     let softwareVersion = '0.0.0';
 
     try {
+        console.log(`[DebugWizard] Getting Device Info Service (UUID: ${DEVICE_INFO_SERVICE_UUID})...`);
         const service = await server.getPrimaryService(DEVICE_INFO_SERVICE_UUID);
+        console.log('[DebugWizard] Device Info Service obtained.');
 
         const ALLOWED_CHARS = ['Model Number', 'Firmware Revision', 'Software Revision', 'Manufacturer Name'];
         for (const [name, uuid] of Object.entries(DEVICE_INFO_CHARS)) {
             if (!ALLOWED_CHARS.includes(name)) continue;
 
             try {
+                console.log(`[DebugWizard] Attempting to get characteristic: ${name} (UUID: ${uuid})...`);
                 const char = await service.getCharacteristic(uuid);
+                console.log(`[DebugWizard] Characteristic ${name} obtained. Reading value...`);
                 const value = await char.readValue();
                 const decoder = new TextDecoder('utf-8');
                 const textValue = decoder.decode(value).replace(/\0/g, ''); // Remove null bytes
+                console.log(`[DebugWizard] Successfully read ${name}: "${textValue}"`);
 
                 if (name === 'Software Revision') {
                     softwareVersion = textValue;
+                }
+
+                if (name === 'Firmware Revision') {
+                    const inference = inferHardwareFromFirmware(textValue);
+                    collectedData.hardwareInference = inference;
+                    console.log('[DebugWizard] Hardware Inference:', inference);
                 }
 
                 const divLabel = document.createElement('div');
@@ -258,8 +298,10 @@ async function fetchDeviceInfo() {
                         divValue.style.color = '#d93025';
                         divValue.textContent += ` (Attendu: ${Array.isArray(REF_VALUES[name]) ? REF_VALUES[name].join(' ou ') : REF_VALUES[name]})`;
                         allMatch = false;
+                        console.warn(`[DebugWizard] Mismatch for ${name}: Expected ${REF_VALUES[name]}, got ${textValue}`);
                     } else {
                         divValue.style.color = '#1e8e3e';
+                        console.log(`[DebugWizard] Match for ${name}: ${textValue}`);
                     }
                 }
 
@@ -267,7 +309,7 @@ async function fetchDeviceInfo() {
                 deviceInfoGrid.appendChild(divValue);
 
             } catch (e) {
-                console.warn(`Failed to read ${name}`, e);
+                console.warn(`[DebugWizard] Failed to read ${name} (UUID: ${uuid}). Error:`, e);
             }
         }
 
@@ -275,12 +317,15 @@ async function fetchDeviceInfo() {
         if (allMatch) {
             deviceInfoCheck.textContent = 'Toutes les informations correspondent aux valeurs de référence.';
             deviceInfoCheck.className = 'status-message success';
+            console.log('[DebugWizard] All Device Info characteristics matched reference values.');
         } else {
             deviceInfoCheck.textContent = "C'est intéressant : certaines valeurs diffèrent de la référence.";
             deviceInfoCheck.className = 'status-message error'; // Or warning style
+            console.warn('[DebugWizard] Some Device Info characteristics did not match reference values.');
         }
 
     } catch (e) {
+        console.error('[DebugWizard] Device Info Service Error: Failed to get primary service or read characteristics.', e);
         deviceInfoCheck.textContent = 'Impossible de lire le service Device Info : ' + e;
         deviceInfoCheck.className = 'status-message error';
         deviceInfoCheck.style.display = 'block';
@@ -330,16 +375,29 @@ function showConditionalQuestions(version) {
     questionsContainer.innerHTML = '';
     let hasQuestions = false;
 
+    // Question: Has Scale? (Always asked)
+    hasQuestions = true;
+    addQuestion("Votre Boks a-t-elle une balance intégrée ?", "Non", true); // Default expected: No, with 'Je ne sais pas'
+
+    // Hardware Inference Question
+    if (collectedData.hardwareInference && collectedData.hardwareInference.version !== 'Unknown') {        hasQuestions = true;
+        const inf = collectedData.hardwareInference;
+        const fwRev = collectedData.deviceInfo['Firmware Revision'];
+
+        const questionText = `Détection Matériel : Le firmware (${fwRev}) indique une Boks v${inf.version} alimentée par ${inf.label}. Est-ce correct ?`;
+        addQuestion(questionText, "Oui", true);
+    }
+
     // Question 1: Version < 4.3.3 -> "Avez-vous des boks tags ?"
     if (compareVersions(version, '4.3.3') < 0) {
         hasQuestions = true;
-        addQuestion("Avez-vous des boks tags ?", "Non");
+        addQuestion("Avez-vous des boks tags ?", "Non", true);
     }
 
     // Question 2: Version < 4.2.0 -> "Avez-vous activé les badges de la poste ?"
     if (compareVersions(version, '4.2.0') < 0) {
         hasQuestions = true;
-        addQuestion("Avez-vous activé les badges de la poste ?", "Non");
+        addQuestion("Avez-vous activé les badges de la poste ?", "Non", true);
     }
 
     if (hasQuestions) {
@@ -347,7 +405,7 @@ function showConditionalQuestions(version) {
     }
 }
 
-function addQuestion(text, expectedAnswer) {
+function addQuestion(text, expectedAnswer, allowUnknown = false) {
     const div = document.createElement('div');
     div.style.marginBottom = '15px';
     div.style.padding = '10px';
@@ -366,6 +424,7 @@ function addQuestion(text, expectedAnswer) {
 
     const btnNo = document.createElement('button');
     btnNo.textContent = 'Non';
+    btnNo.style.marginRight = '10px';
 
     const resultDiv = document.createElement('div');
     resultDiv.style.marginTop = '5px';
@@ -374,6 +433,7 @@ function addQuestion(text, expectedAnswer) {
     const handleAnswer = (answer) => {
         btnYes.disabled = true;
         btnNo.disabled = true;
+        if (btnUnknown) btnUnknown.disabled = true;
 
         collectedData.questionAnswers.push({
             question: text,
@@ -384,8 +444,11 @@ function addQuestion(text, expectedAnswer) {
         if (answer === expectedAnswer) {
             resultDiv.textContent = "OK";
             resultDiv.style.color = 'green';
+        } else if (answer === 'Inconnu') {
+             resultDiv.textContent = "Noté. Nous tenterons de le déterminer via les capteurs.";
+             resultDiv.style.color = '#1a73e8';
         } else {
-            resultDiv.textContent = "Attention : Cette configuration n'est pas recommandée pour votre version.";
+            resultDiv.textContent = "Observation : Cette configuration est inattendue pour cette version.";
             resultDiv.style.color = 'orange';
         }
     };
@@ -395,6 +458,16 @@ function addQuestion(text, expectedAnswer) {
 
     div.appendChild(btnYes);
     div.appendChild(btnNo);
+
+    let btnUnknown = null;
+    if (allowUnknown) {
+        btnUnknown = document.createElement('button');
+        btnUnknown.textContent = 'Je ne sais pas';
+        btnUnknown.style.backgroundColor = '#6c757d'; // Grey
+        btnUnknown.addEventListener('click', () => handleAnswer('Inconnu'));
+        div.appendChild(btnUnknown);
+    }
+
     div.appendChild(resultDiv);
     questionsContainer.appendChild(div);
 }
@@ -504,6 +577,7 @@ function handleNotifications(event) {
 }
 
 async function readBattery() {
+    console.log('[DebugWizard] Starting Battery Read Sequence...');
     batteryResult.style.display = 'block';
     standardBatteryResult.style.display = 'block';
     batteryResult.textContent = 'Lecture propriétaire en cours...';
@@ -511,20 +585,24 @@ async function readBattery() {
 
     // 1. Read Standard Battery Service
     try {
+        console.log('[DebugWizard] Reading Standard Battery Level (0x2A19)...');
         const service = await server.getPrimaryService(BATTERY_SERVICE_UUID);
         const char = await service.getCharacteristic(BATTERY_LEVEL_CHAR_UUID);
         const value = await char.readValue();
         const level = value.getUint8(0);
+        console.log(`[DebugWizard] Standard Level: ${level}%`);
 
         standardBatteryResult.textContent = `Niveau: ${level}%`;
         collectedData.batteryData.standardLevel = level;
     } catch (e) {
+        console.warn('[DebugWizard] Standard Battery Read Failed:', e);
         standardBatteryResult.textContent = 'Non disponible ou erreur: ' + e.message;
         collectedData.batteryData.standardError = e.message;
     }
 
     // 2. Read Proprietary Battery Characteristic
     try {
+        console.log('[DebugWizard] Reading Proprietary Battery Characteristic (0x0004)...');
         const services = await server.getPrimaryServices();
         let found = false;
 
@@ -536,6 +614,7 @@ async function readBattery() {
                     .map(b => b.toString(16).padStart(2, '0').toUpperCase())
                     .join(' ');
 
+                console.log(`[DebugWizard] Raw Battery Data (Hex): ${hex}`);
                 batteryResult.textContent = `Service: ${s.uuid}\nUUID: ${char.uuid}\nValeur Hex: ${hex}`;
 
                 collectedData.batteryData.rawHex = hex;
@@ -589,6 +668,8 @@ async function readBattery() {
                     const last = v[4] * 100;
                     const temp = v[5] - 25;
 
+                    console.log(`[DebugWizard] Battery Values (mV): First=${first}, Min=${min}, Mean=${mean}, Max=${max}, Last=${last}, Temp=${temp}°C`);
+
                     const toV = (mv) => (mv / 1000).toFixed(1);
 
                     batteryResult.textContent += `\n\nInterprétation:`;
@@ -602,7 +683,98 @@ async function readBattery() {
                         batteryResult.textContent += ` ⚠️ Tension faible !`;
                     }
 
-                    const batteryType = document.getElementById('batteryTypeSelector').value;
+                    // --- New Battery Analysis Logic ---
+                    const analysisContainer = document.getElementById('batteryAnalysisContainer');
+                    const elUserClaim = document.getElementById('batUserClaim');
+                    const elDetected = document.getElementById('batDetected');
+                    const elConsistency = document.getElementById('batConsistency');
+
+                    analysisContainer.style.display = 'block';
+
+                    // 1. User Claim (Step 1)
+                    let userClaimType = null;
+                    let userClaimText = "Inconnue";
+                    
+                    const hardwareQa = collectedData.questionAnswers.find(q => q.question.includes('Détection Matériel'));
+                    
+                    if (hardwareQa) {
+                        if (hardwareQa.answer === 'Oui' && collectedData.hardwareInference) {
+                            userClaimType = collectedData.hardwareInference.battery;
+                            userClaimText = collectedData.hardwareInference.label + " (Confirmé)";
+                        } else if (hardwareQa.answer === 'Non') {
+                            userClaimText = "Infirmé par l'utilisateur";
+                            userClaimType = 'rejected';
+                        } else if (hardwareQa.answer === 'Inconnu') {
+                            userClaimText = "Inconnu (Utilisateur)";
+                            userClaimType = 'unknown';
+                        }
+                    }
+
+                    // 2. Voltage Detection (Step 2)
+                    let detectedType = null;
+                    let detectedText = "Incertain";
+
+                    if (last > 5000) {
+                        detectedType = 'aaa';
+                        detectedText = "8x AAA ( > 5V )";
+                    } else if (last < 4500) {
+                        detectedType = 'lsh14';
+                        detectedText = "LSH14 ( < 4.5V )";
+                    } else {
+                        detectedText = `Ambigu (${(last/1000).toFixed(2)}V)`;
+                    }
+
+                    console.log(`[DebugWizard] Battery Analysis: UserClaim=${userClaimType}, Detected=${detectedType}`);
+
+                    // 3. Final Type Decision & Consistency
+                    let finalType = 'aaa'; // Default fallback
+                    let consistencyStatus = 'neutral';
+                    let consistencyText = '';
+
+                    // Decision Matrix
+                    if (userClaimType === 'aaa' || userClaimType === 'lsh14') {
+                        // User made a claim
+                        if (detectedType) {
+                            if (userClaimType === detectedType) {
+                                finalType = detectedType;
+                                consistencyStatus = 'success';
+                                consistencyText = "✅ Cohérent : Le voltage confirme le matériel.";
+                            } else {
+                                finalType = detectedType; // Trust Physics over User
+                                consistencyStatus = 'error';
+                                consistencyText = "❌ Incohérence : Le voltage contredit le matériel déclaré !";
+                            }
+                        } else {
+                            // Voltage ambiguous, trust user
+                            finalType = userClaimType;
+                            consistencyStatus = 'warning';
+                            consistencyText = "⚠️ Voltage ambigu, utilisation du type déclaré.";
+                        }
+                    } else {
+                        // User didn't know or wasn't asked
+                        if (detectedType) {
+                            finalType = detectedType;
+                            consistencyStatus = 'success'; // It's a success of detection
+                            consistencyText = "ℹ️ Type déduit automatiquement du voltage.";
+                        } else {
+                            finalType = 'aaa'; // Blind guess
+                            consistencyStatus = 'warning';
+                            consistencyText = "⚠️ Impossible de déterminer le type (Voltage ambigu). Par défaut : AAA.";
+                        }
+                    }
+
+                    // 4. Update UI
+                    elUserClaim.textContent = userClaimText;
+                    elDetected.textContent = detectedText;
+                    elConsistency.textContent = consistencyText;
+
+                    // Style consistency
+                    if (consistencyStatus === 'success') elConsistency.style.color = 'green';
+                    else if (consistencyStatus === 'error') elConsistency.style.color = '#d93025';
+                    else elConsistency.style.color = '#e65100';
+
+                    // 5. Apply to Calculations
+                    const batteryType = finalType; // For backward compatibility with existing code below
                     
                     if (batteryType === 'aaa') {
                         const percentage = calculateAAAPercentage(last);
@@ -623,6 +795,7 @@ async function readBattery() {
                     collectedData.batteryData.parsed = {
                         format: format,
                         batteryType: batteryType,
+                        consistency: consistencyStatus, // Save for JSON report
                         first_mV: first,
                         min_mV: min,
                         mean_mV: mean,
@@ -648,6 +821,7 @@ async function readBattery() {
         }
 
         if (!found) {
+            console.warn('[DebugWizard] Proprietary Battery Characteristic Not Found');
             batteryResult.textContent = 'Caractéristique 00000004... non trouvée dans les services exposés.';
             collectedData.batteryData.error = 'Characteristic not found';
         }
@@ -656,6 +830,7 @@ async function readBattery() {
         batteryStatus.className = 'status-message success';
 
     } catch (e) {
+        console.error('[DebugWizard] Battery Read Error:', e);
         batteryResult.textContent = 'Erreur de lecture : ' + e;
         collectedData.batteryData.error = e.toString();
 
@@ -663,8 +838,18 @@ async function readBattery() {
         batteryStatus.className = 'status-message error';
     }
 }
-
 function generateRecap() {
+    // Extract hasScale from questions and add to userInputs
+    const hasScaleQa = collectedData.questionAnswers.find(q => q.question.includes('balance intégrée'));
+    if (hasScaleQa) {
+        // Map 'Oui' -> 'yes', 'Non' -> 'no', 'Inconnu' -> 'unknown'
+        if (hasScaleQa.answer === 'Oui') collectedData.userInputs.hasScale = 'yes';
+        else if (hasScaleQa.answer === 'Non') collectedData.userInputs.hasScale = 'no';
+        else collectedData.userInputs.hasScale = 'unknown'; // Defaults to unknown if 'Je ne sais pas' or unexpected
+    } else {
+        collectedData.userInputs.hasScale = 'unknown'; // Default if question not asked/answered
+    }
+    
     jsonRecap.value = JSON.stringify(collectedData, null, 2);
 }
 

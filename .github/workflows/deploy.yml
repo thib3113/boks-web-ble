@@ -12,6 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      
+      - name: Generate version file
+        run: |
+          echo "{\"version\": \"$GITHUB_SHA\", \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > public/version.json
+
       - name: Upload static files as artifact
         id: deployment
         uses: actions/upload-pages-artifact@v4

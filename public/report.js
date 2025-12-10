@@ -59,8 +59,13 @@ function displayUserInputs(userInputs) {
     addInfoToGrid(userInputsGrid, 'Type de Boks', userInputs.boksType || 'N/A');
     
     // Display scale information
-    const hasScale = userInputs.hasScale ? 'Oui' : 'Non';
-    addInfoToGrid(userInputsGrid, 'Balance', hasScale);
+    let scaleText = 'Non défini';
+    if (userInputs.hasScale === 'yes') scaleText = 'Oui';
+    else if (userInputs.hasScale === 'no') scaleText = 'Non';
+    else if (userInputs.hasScale === 'unknown') scaleText = 'Je ne sais pas';
+    else if (typeof userInputs.hasScale === 'boolean') scaleText = userInputs.hasScale ? 'Oui' : 'Non'; // Backwards compatibility
+    
+    addInfoToGrid(userInputsGrid, 'Balance', scaleText);
 }
 
 function displayExtraData(extraData) {
@@ -172,22 +177,29 @@ function displayBatteryStatus(batteryData) {
         // Only proceed if we have a valid voltage
         if (voltage !== undefined && voltage > 0) {
             
-            // Determine type: prefer explicit user selection from debug tool, else fallback to auto-detect
-            let batteryType = batteryData.parsed.batteryType; // 'aaa' or 'lsh14'
-            let typeSource = "Sélectionné";
-            
-            if (!batteryType) {
-                // Fallback auto-detect
-                batteryType = (voltage > 5000) ? 'aaa' : 'lsh14';
-                typeSource = "Détecté (auto)";
-            }
-
+            const batteryType = batteryData.parsed.batteryType || ((voltage > 5000) ? 'aaa' : 'lsh14');
+            const typeSource = batteryData.parsed.typeSource || "Détecté (auto)";
             const displayType = (batteryType === 'aaa') ? '8x AAA' : 'LSH14';
+            const consistency = batteryData.parsed.consistency; // 'success', 'error', 'warning', 'neutral'
 
             // Info about type
             const typeInfo = document.createElement('div');
-            typeInfo.innerHTML = `<strong>Type (${typeSource}) :</strong> ${displayType}`;
+            let consistencyIcon = '';
+            if (consistency === 'success') consistencyIcon = '✅';
+            else if (consistency === 'error') consistencyIcon = '❌';
+            else if (consistency === 'warning') consistencyIcon = '⚠️';
+            else if (consistency === 'neutral') consistencyIcon = 'ℹ️';
+
+            typeInfo.innerHTML = `<strong>Type :</strong> ${displayType} <br>
+                                  <span style="font-size:0.9em; color:#666;">Source: ${typeSource} ${consistencyIcon}</span>`;
+            
             typeInfo.style.marginBottom = '10px';
+            typeInfo.style.padding = '5px';
+            typeInfo.style.borderLeft = '3px solid #ccc';
+            if (consistency === 'success') typeInfo.style.borderLeftColor = 'green';
+            else if (consistency === 'error') typeInfo.style.borderLeftColor = '#d93025';
+            else if (consistency === 'warning') typeInfo.style.borderLeftColor = '#ff9800';
+
             batteryWarnings.appendChild(typeInfo);
 
             let alertLevel = 'OK';
@@ -221,7 +233,6 @@ function displayBatteryStatus(batteryData) {
                     msg = `URGENT (${voltage}mV): Leaving stable plateau (< 5% left). Replace LSH14 immediately.`;
                     color = '#c62828'; bgColor = '#ffebee'; borderColor = '#ef5350';
                 } 
-                // No specific "Low" for LSH14 above 3.3V as curve is flat until drop
             }
 
             if (alertLevel !== 'OK') {

@@ -146,6 +146,19 @@ function renderStoredLogs() {
 
 // BLE Functions
 async function connect() {
+    // Check Web Bluetooth API availability
+    const btStatus = checkWebBluetoothAvailability();
+    if (!btStatus.isAvailable) {
+        const warningDiv = document.getElementById('webBluetoothWarning');
+        if (warningDiv) {
+            warningDiv.innerHTML = btStatus.message;
+            warningDiv.style.display = 'block';
+        }
+        connectBtn.disabled = true;
+        log(btStatus.message, 'error'); // Also log to internal console
+        return; // Stop connection attempt
+    }
+
     try {
         log('Requesting Bluetooth Device...');
         device = await navigator.bluetooth.requestDevice({
@@ -298,204 +311,135 @@ function parseBatteryInfo(value) {
     batVLastEl.textContent = voltages.last;
 
     // Check Alert based on Selected Battery Type
-    lastBatteryData = value;
-    const selectedType = batteryTypeSelector.value;
-    const currentLevel = data[0];
-
-    if (alertVoltage !== null && alertVoltage > 0) {
-        let status = 'OK';
-
-        if (selectedType === 'aaa') {
-            // === 8x AAA LOGIC ===
-            if (alertVoltage < 7200) {
-                showAlert('#b71c1c', '#ffebee', '#b71c1c',
-                    `<strong>EMPTY (${alertVoltage}mV):</strong> Electronics failing. Replace 8x AAA immediately.`);
-                log(`BATTERY (AAA) CUTOFF: ${alertVoltage}mV`, 'error');
-                status = 'CUTOFF';
-            } else if (alertVoltage < 8000) {
-                showAlert('#ef5350', '#ffebee', '#c62828',
-                    `CRITICAL (${alertVoltage}mV): Shutdown imminent. Leakage risk. Replace 8x AAA.`);
-                log(`BATTERY (AAA) ALARM: ${alertVoltage}mV`, 'warning');
-                status = 'ALARM';
-            } else if (alertVoltage < 9600) {
-                showAlert('#ffb74d', '#fff3e0', '#e65100',
-                    `LOW (${alertVoltage}mV): ~20-30% remaining. Plan replacement.`);
-                log(`BATTERY (AAA) WARNING: ${alertVoltage}mV`, 'warning');
-                status = 'WARNING';
-            } else {
-                batteryAlertEl.style.display = 'none';
-            }
-        } else {
-            // === LSH14 LOGIC ===
-
-            // Special Case: Config Mismatch (Level 0% but Voltage Good)
-            if (currentLevel === 0 && alertVoltage > 3300) {
-                 showAlert('#ffb74d', '#fff3e0', '#e65100',
-                    `<strong>CONFIG MISMATCH?</strong> Voltage (${alertVoltage}mV) is good for LSH14, but Level is 0% (AAA scale). Check device config.`);
-                 log(`BATTERY MISMATCH: ${alertVoltage}mV / 0%`, 'warning');
-                 status = 'MISMATCH';
-            }
-            else if (alertVoltage < 3000) {
-                showAlert('#ef5350', '#ffebee', '#c62828',
-                    `<strong>CRITICAL (${alertVoltage}mV):</strong> Battery empty (<3.0V). Drop to 0V imminent. Replace LSH14 immediately.`);
-                log(`BATTERY (LSH14) CRITICAL: ${alertVoltage}mV`, 'error');
-                status = 'CRITICAL';
-            } else if (alertVoltage <= 3300) {
-                showAlert('#ffb74d', '#fff3e0', '#e65100',
-                    `URGENT (${alertVoltage}mV): Leaving stable plateau. <5% remaining. Replace LSH14 immediately.`);
-                log(`BATTERY (LSH14) WARNING: ${alertVoltage}mV`, 'warning');
-                status = 'WARNING';
-            } else {
-                batteryAlertEl.style.display = 'none';
-            }
-        }
-
-        // Update format text
-        batteryFormatEl.textContent = `${format} [${selectedType.toUpperCase()}]`;
-    }
+    analyzeBatteryHealth(alertVoltage);
 }
 
-function showAlert(borderColor, bgColor, textColor, htmlMsg) {
-    batteryAlertEl.style.display = 'block';
-    batteryAlertEl.style.borderColor = borderColor;
-    batteryAlertEl.style.backgroundColor = bgColor;
-    batteryAlertEl.style.color = textColor;
-    batteryAlertMsgEl.innerHTML = htmlMsg;
+function analyzeBatteryHealth(voltage_mV) {
+    if (!voltage_mV || isNaN(voltage_mV)) return;
+
+    const type = batteryTypeSelector.value;
+    let alertLevel = 'OK';
+    let msg = '';
+
+    if (type === 'aaa') {
+        // AAA Logic
+        if (voltage_mV < 7200) {
+            alertLevel = 'CRITICAL';
+            msg = `CRITICAL (${voltage_mV}mV): Replace 8x AAA immediately!`;
+        } else if (voltage_mV < 8000) {
+            alertLevel = 'ALARM';
+            msg = `LOW (${voltage_mV}mV): Shutdown imminent.`;
+        } else if (voltage_mV < 9600) {
+            alertLevel = 'LOW';
+            msg = `WARNING (${voltage_mV}mV): ~20-30% remaining.`;
+        }
+    } else {
+        // LSH14 Logic
+        if (voltage_mV < 3000) {
+            alertLevel = 'CRITICAL';
+            msg = `CRITICAL (${voltage_mV}mV): Battery empty! Replace LSH14.`;
+        } else if (voltage_mV <= 3300) {
+            alertLevel = 'ALARM';
+            msg = `URGENT (${voltage_mV}mV): End of life (<5%). Replace LSH14.`;
+        }
+    }
+
+    if (alertLevel !== 'OK') {
+        batteryAlertEl.style.display = 'block';
+        batteryAlertMsgEl.innerHTML = msg;
+    }
 }
 
 async function updateBatteryInfo() {
-    log('Updating Battery Info...', 'info');
     try {
-        // Try reading from Main Service (where custom char usually resides)
-        // Ensure 'service' is the Main Service (A763...)
-        if (!service) return;
+        const services = await server.getPrimaryServices();
+        let char = null;
 
-        const char = await service.getCharacteristic(CUSTOM_BATTERY_CHAR_UUID);
-        const value = await char.readValue();
-        parseBatteryInfo(value);
-        log('Battery Info Updated', 'info');
+        // Search for Prop Battery Char
+        for (const s of services) {
+            try {
+                char = await s.getCharacteristic(CUSTOM_BATTERY_CHAR_UUID);
+                break;
+            } catch (e) {}
+        }
+
+        if (char) {
+            const value = await char.readValue();
+            lastBatteryData = value; // Store for type toggling
+            parseBatteryInfo(value);
+        } else {
+            log('Battery characteristic not found', 'warning');
+        }
     } catch (e) {
-        log('Failed to read Custom Battery Info: ' + e, 'warning');
-        // If failed, maybe try Battery Service? Already done in initial.
+        log('Failed to read battery: ' + e, 'error');
     }
 }
 
-// Device Info Functions
 async function fetchInitialDeviceInfo() {
-    log('Fetching Initial Device Info...', 'info');
-
-    // 1. Get Battery Level (Standard)
     try {
-        const batteryService = await server.getPrimaryService(BATTERY_SERVICE_UUID);
-        const batteryChar = await batteryService.getCharacteristic(BATTERY_LEVEL_CHAR_UUID);
-        const value = await batteryChar.readValue();
-        const level = value.getUint8(0);
-        document.getElementById('batteryLevel').textContent = `${level}%`;
-        log(`Battery Level: ${level}%`, 'info');
-    } catch (e) {
-        log('Failed to get Battery Level: ' + e, 'error');
-        document.getElementById('batteryLevel').textContent = 'Error';
-    }
-
-    // NOTE: Advanced Battery Info is NOT fetched here.
-    // It requires a fresh door opening event to be accurate.
-    // Use the "Waiting for door opening..." placeholder.
-
-    // 2. Get Device Information
-    try {
-        const deviceService = await server.getPrimaryService(DEVICE_INFO_SERVICE_UUID);
-        const infoContainer = document.getElementById('deviceInfoContainer'); // New container in HTML
-        infoContainer.innerHTML = ''; // Clear previous
-
-        for (const [name, uuid] of Object.entries(DEVICE_INFO_CHARS)) {
-            try {
-                const char = await deviceService.getCharacteristic(uuid);
-                const value = await char.readValue();
-                let displayValue = '';
-
-                if (name === 'System ID') {
-                    // System ID is bytes, display as Hex
-                    const hexId = Array.from(new Uint8Array(value.buffer))
-                        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
-                        .join(':');
-                    displayValue = hexId;
-
-                    // Use System ID as Device ID for storage
-                    currentDeviceId = hexId;
-                    log(`Device ID set to System ID: ${currentDeviceId}`, 'info');
-                    loadStorage();
-                } else {
-                    // Others are usually text
-                    const decoder = new TextDecoder('utf-8');
-                    displayValue = decoder.decode(value);
-                }
-
-                // Add to UI
-                const div = document.createElement('div');
-                div.className = 'input-group';
-                div.innerHTML = `<label>${name}:</label><span>${displayValue}</span>`;
-                infoContainer.appendChild(div);
-
-                log(`${name}: ${displayValue}`, 'info');
-
-            } catch (charError) {
-                // Characteristic not supported or read failed, skip it
-                log(`${name} not available: ${charError.message}`, 'debug');
+        const infoService = await server.getPrimaryService(DEVICE_INFO_SERVICE_UUID);
+        const char = await infoService.getCharacteristic('00002a26-0000-1000-8000-00805f9b34fb'); // Firmware Revision
+        const value = await char.readValue();
+        const fwRev = new TextDecoder().decode(value).replace(/\0/g, '');
+        
+        log(`Firmware Revision: ${fwRev}`, 'info');
+        
+        const inference = inferHardwareFromFirmware(fwRev);
+        if (inference.battery !== 'unknown') {
+            log(`Auto-detected: Boks v${inference.version} using ${inference.label}`, 'success');
+            
+            // Auto-select in UI
+            if (batteryTypeSelector.value !== inference.battery) {
+                batteryTypeSelector.value = inference.battery;
+                batteryTypeSelector.dispatchEvent(new Event('change'));
+                log(`Switched battery profile to ${inference.label}`, 'info');
             }
+            
+            // Show toast or small info
+            const infoDiv = document.createElement('div');
+            infoDiv.style.padding = '5px';
+            infoDiv.style.backgroundColor = '#e8f0fe';
+            infoDiv.style.color = '#1a73e8';
+            infoDiv.style.fontSize = '0.9em';
+            infoDiv.style.marginTop = '5px';
+            infoDiv.textContent = `Hardware: v${inference.version} (${inference.label})`;
+            deviceInfoDiv.insertBefore(infoDiv, deviceInfoDiv.firstChild);
         }
-
-        // Fallback for Device ID if System ID failed
-        if (!currentDeviceId) {
-            currentDeviceId = device.id;
-            log(`System ID not found, using instance ID: ${currentDeviceId}`, 'warning');
-            loadStorage();
-        }
-
     } catch (e) {
-        log('Failed to access Device Info Service: ' + e, 'error');
-        // Still try to load storage if we connected but service failed
-        if (!currentDeviceId) {
-             currentDeviceId = device.id;
-             loadStorage();
-        }
+        log('Could not read Device Info (normal for some fw): ' + e, 'warning');
     }
 }
 
 async function openDoor() {
     const code = document.getElementById('openCode').value;
-    if (!/^[0-9AB]{6}$/.test(code)) {
-        log('Invalid code format. Must be 6 chars (0-9, A, B)', 'error');
+    if (code.length !== 6) {
+        alert('Code must be 6 characters');
         return;
     }
-
-    // Save to storage
-    storedData.openCode = code;
-    saveStorage();
-
-    // Packet: [0x01, Length, Code...]
-    // Length = 6 (code)
+    
+    // Packet: [0x01, 0x06, C, O, D, E, X, X]
     const packet = new Uint8Array(8);
     packet[0] = OP_OPEN_DOOR;
-    packet[1] = 0x06;
+    packet[1] = 0x06; // Length
     for (let i = 0; i < 6; i++) {
-        packet[2 + i] = code.charCodeAt(i);
+        packet[2+i] = code.charCodeAt(i);
     }
-
+    
     await sendPacket(packet);
 }
 
 async function createCode() {
     const configKey = document.getElementById('configKey').value;
-    const newCode = document.getElementById('newCode').value?.toUpperCase();
+    const newCode = document.getElementById('newCode').value;
     const type = document.getElementById('codeType').value;
     const index = parseInt(document.getElementById('codeIndex').value);
 
     if (configKey.length !== 8) {
-        log('Config Key must be 8 chars', 'error');
+        alert('Config Key must be 8 characters');
         return;
     }
-    if (!/^[0-9AB]{6}$/.test(newCode)) {
-        log('Invalid code format', 'error');
+    if (newCode.length !== 6) {
+        alert('New Code must be 6 characters');
         return;
     }
 
@@ -513,13 +457,6 @@ async function createCode() {
     if (type === 'master') opcode = OP_CREATE_MASTER;
     else if (type === 'single') opcode = OP_CREATE_SINGLE;
     else if (type === 'multi') opcode = OP_CREATE_MULTI;
-
-    // Let's look at examples in doc.
-    // 0x16 example: 16 0a ... (10 bytes payload) -> 8 key + 1 type + 1 enabled.
-    // So Length seems to be payload length (excluding checksum).
-
-    // For 0x11: Key(8) + Code(6) + Index(1) = 15 bytes.
-    // For 0x12/0x13: Key(8) + Code(6) = 14 bytes.
 
     const packetLength = type === 'master' ? 18 : 17;
     const packet = new Uint8Array(packetLength);
@@ -604,11 +541,62 @@ function parseLogEvent(data) {
     container.scrollTop = container.scrollHeight;
 }
 
-// Service Worker Registration
+// Service Worker & Version Management
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-            .then(reg => log('Service Worker registered', 'info'))
-            .catch(err => log('Service Worker registration failed: ' + err, 'error'));
+    window.addEventListener('load', async () => {
+        try {
+            const reg = await navigator.serviceWorker.register('sw.js');
+            log('Service Worker enregistré', 'info');
+            
+            // Check for updates
+            checkForUpdate();
+            // Check every 60 seconds
+            setInterval(checkForUpdate, 60000);
+            
+            // Handle Update Button
+            document.getElementById('updateBtn').addEventListener('click', async () => {
+                const btn = document.getElementById('updateBtn');
+                btn.disabled = true;
+                btn.textContent = 'Mise à jour...';
+                
+                // 1. Unregister SW
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                }
+                
+                // 2. Clear Caches
+                const keys = await caches.keys();
+                await Promise.all(keys.map(key => caches.delete(key)));
+                
+                // 3. Reload
+                window.location.reload(true);
+            });
+
+        } catch (err) {
+            log('Échec de l\'enregistrement du Service Worker : ' + err, 'error');
+        }
     });
+}
+
+async function checkForUpdate() {
+    try {
+        const response = await fetch('version.json', { cache: 'no-store' });
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const serverVersion = data.version;
+        const localVersion = localStorage.getItem('app_version');
+
+        if (localVersion && localVersion !== serverVersion) {
+            // Version mismatch! Show notification
+            document.getElementById('updateNotification').style.display = 'block';
+            log(`Nouvelle version disponible : ${serverVersion} (Actuelle : ${localVersion})`, 'info');
+        } else {
+            // First run or same version, update local storage
+            localStorage.setItem('app_version', serverVersion);
+        }
+    } catch (e) {
+        console.error('Failed to check version:', e);
+    }
 }

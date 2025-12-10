@@ -178,3 +178,52 @@ function parsePacketDetails(opcode, data) {
         return `ParseError: ${e.message}`;
     }
 }
+
+/**
+ * Checks if Web Bluetooth API is available and provides a user-friendly message.
+ * @returns {object} { isAvailable: boolean, message: string, recommendBluefy: boolean }
+ */
+function checkWebBluetoothAvailability() {
+    // Detect iOS (iPad, iPhone, iPod) and exclude desktop Safari which supports Web Bluetooth.
+    // The WebKit restriction for Web Bluetooth is specific to iOS/iPadOS browsers.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream && (navigator.maxTouchPoints > 0 || 'ontouchstart' in document);
+
+    if (!navigator.bluetooth) {
+        if (isIOS) {
+            return {
+                isAvailable: false,
+                message: "L'API Web Bluetooth n'est pas disponible sur ce navigateur iOS. Pour accéder aux fonctionnalités Bluetooth, veuillez utiliser l'application **Bluefy** (disponible sur l'App Store) et ouvrir cette page dans Bluefy.",
+                recommendBluefy: true
+            };
+        } else {
+            return {
+                isAvailable: false,
+                message: "L'API Web Bluetooth n'est pas disponible sur ce navigateur. Assurez-vous d'utiliser un navigateur compatible (ex: Chrome sur Android/Desktop, Edge) et que le Bluetooth est activé sur votre appareil.",
+                recommendBluefy: false
+            };
+        }
+    }
+    return { isAvailable: true, message: "Web Bluetooth est disponible.", recommendBluefy: false };
+}
+
+
+/**
+ * Infers PCB Version and Battery Type from Firmware Revision String
+ * @param {string} firmwareRevision 
+ * @returns {object} { version: string, battery: 'aaa'|'lsh14'|'unknown', label: string }
+ */
+function inferHardwareFromFirmware(firmwareRevision) {
+    if (!firmwareRevision) return { version: 'Unknown', battery: 'unknown', label: 'Inconnu' };
+    
+    // Normalize string to handle potential encoding weirdness or case
+    const rev = firmwareRevision.toLowerCase();
+
+    if (rev.includes('10/125')) {
+        return { version: '4.0', battery: 'aaa', label: '8x AAA' };
+    }
+    if (rev.includes('10/cd')) {
+        return { version: '3.0', battery: 'lsh14', label: 'Saft LSH14' };
+    }
+
+    return { version: 'Unknown', battery: 'unknown', label: 'Inconnu' };
+}

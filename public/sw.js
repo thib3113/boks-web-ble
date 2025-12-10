@@ -1,4 +1,4 @@
-const CACHE_NAME = 'boks-web-ble-v1';
+const CACHE_NAME = 'boks-web-ble-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -10,9 +10,16 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
+  // Force this new service worker to become the active one, taking over from the old one immediately
+  self.skipWaiting();
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
+});
+
+self.addEventListener('activate', (e) => {
+  // Claim control of all open clients immediately
+  e.waitUntil(clients.claim());
 });
 
 self.addEventListener('fetch', (e) => {
