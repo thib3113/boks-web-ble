@@ -49,6 +49,10 @@ const exploreServiceBtn = document.getElementById('exploreServiceBtn');
 const serviceExplorationLog = document.getElementById('serviceExplorationLog');
 const prevStep3Btn = document.getElementById('prevStep3');
 const finishBtn = document.getElementById('finishBtn');
+const skipStep3Btn = document.getElementById('skipStep3Btn');
+const showAdvancedBtn = document.getElementById('showAdvancedBtn');
+const advancedToolsContainer = document.getElementById('advancedToolsContainer');
+
 const prevStep4Btn = document.getElementById('prevStep4');
 const copyJsonBtn = document.getElementById('copyJsonBtn');
 const jsonRecap = document.getElementById('jsonRecap');
@@ -64,10 +68,22 @@ nextStep1Btn.addEventListener('click', () => showStep('step2'));
 nextStep2Btn.addEventListener('click', () => showStep('step3'));
 prevStep2Btn.addEventListener('click', () => showStep('step1'));
 prevStep3Btn.addEventListener('click', () => showStep('step2'));
-finishBtn.addEventListener('click', () => {
+
+const goToStep4 = () => {
     generateRecap();
     showStep('step4');
-});
+};
+
+finishBtn.addEventListener('click', goToStep4);
+if (skipStep3Btn) skipStep3Btn.addEventListener('click', goToStep4);
+
+if (showAdvancedBtn) {
+    showAdvancedBtn.addEventListener('click', () => {
+        advancedToolsContainer.style.display = 'block';
+        showAdvancedBtn.style.display = 'none';
+    });
+}
+
 prevStep4Btn.addEventListener('click', () => showStep('step3'));
 
 copyJsonBtn.addEventListener('click', async () => {

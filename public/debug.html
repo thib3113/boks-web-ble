@@ -257,32 +257,61 @@
         <!-- Step 3: Advanced Debug -->
         <div id="step3" class="card step">
             <div class="step-header">
-                <span class="step-title">Étape 3 : Débogage Avancé (nRF Connect)</span>
+                <span class="step-title">Étape 3 : Débogage Avancé (Optionnel)</span>
                 <span>3/3</span>
             </div>
 
-            <p>Pour aller plus loin, nous vous recommandons d'utiliser l'application <strong>nRF Connect for Mobile</strong>.</p>
-
-            <ul>
-                <li><a href="https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp" target="_blank">Android (Google Play)</a></li>
-                <li><a href="https://apps.apple.com/us/app/nrf-connect-for-mobile/id1054362403" target="_blank">iOS (App Store)</a></li>
-            </ul>
-
-            <h3>Exploration des Services</h3>
-            <p>Vous pouvez explorer manuellement les services en entrant leur UUID ci-dessous.</p>
-
-            <div class="input-group">
-                <label>UUID du Service :</label>
-                <input type="text" id="customServiceUuid" placeholder="ex: 0000180f-0000-1000-8000-00805f9b34fb" list="knownServices">
-                <datalist id="knownServices">
-                    <option value="a7630001-f491-4f21-95ea-846ba586e361">Boks Main Service</option>
-                    <option value="0000180f-0000-1000-8000-00805f9b34fb">Battery Service</option>
-                    <option value="0000180a-0000-1000-8000-00805f9b34fb">Device Info Service</option>
-                </datalist>
-                <button id="exploreServiceBtn">Explorer le Service</button>
+            <div style="background-color: #e8f0fe; padding: 15px; border-radius: 4px; border: 1px solid #d2e3fc; margin-bottom: 20px;">
+                <p style="margin-top:0; font-weight: bold;">Cette étape est réservée aux utilisateurs avancés.</p>
+                <p style="margin-bottom:0;">Elle permet d'utiliser des outils externes pour analyser les services Bluetooth en profondeur. Si vous ne savez pas ce qu'est un UUID ou nRF Connect, vous pouvez passer cette étape sans problème.</p>
             </div>
 
-            <div id="serviceExplorationLog" class="log-container"></div>
+            <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+                <button id="skipStep3Btn" style="background-color: #1e8e3e; font-size: 1.1em; padding: 12px 24px;">Passer cette étape (Recommandé)</button>
+            </div>
+
+            <div style="text-align: center;">
+                <button id="showAdvancedBtn" style="background-color: #f1f3f4; color: #333; border: 1px solid #ddd;">Afficher les outils avancés</button>
+            </div>
+
+            <div id="advancedToolsContainer" style="display: none; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+                <h3>Utilisation de nRF Connect</h3>
+                <p>Pour aller plus loin, nous vous recommandons d'utiliser l'application <strong>nRF Connect for Mobile</strong>.</p>
+
+                <ul>
+                    <li><a href="https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp" target="_blank">Android (Google Play)</a></li>
+                    <li><a href="https://apps.apple.com/us/app/nrf-connect-for-mobile/id1054362403" target="_blank">iOS (App Store)</a></li>
+                </ul>
+
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                    <h4 style="margin-top:0;">Tutoriel : Lister les caractéristiques</h4>
+                    <ol style="padding-left: 20px;">
+                        <li>Ouvrez l'application <strong>nRF Connect</strong> sur votre téléphone.</li>
+                        <li>Lancez un <strong>SCAN</strong> et trouvez votre appareil "BOKS".</li>
+                        <li>Cliquez sur <strong>CONNECT</strong>.</li>
+                        <li>Une fois connecté, vous verrez la liste des Services (ex: <code>Generic Access</code>, <code>Battery Service</code>...).</li>
+                        <li>Cherchez le service inconnu/propriétaire (souvent en bas, UUID commençant par <code>a763...</code>).</li>
+                        <li>Cliquez dessus pour voir les <strong>Caractéristiques</strong> (Characteristics).</li>
+                        <li>Prenez des captures d'écran des UUIDs et des valeurs (bouton flèche "Read" ↓).</li>
+                    </ol>
+                </div>
+
+                <h3>Exploration Web (Expérimental)</h3>
+                <p>Vous pouvez aussi explorer manuellement les services depuis cette page.</p>
+
+                <div class="input-group">
+                    <label>UUID du Service :</label>
+                    <input type="text" id="customServiceUuid" placeholder="ex: 0000180f-0000-1000-8000-00805f9b34fb" list="knownServices">
+                    <datalist id="knownServices">
+                        <option value="a7630001-f491-4f21-95ea-846ba586e361">Boks Main Service</option>
+                        <option value="0000180f-0000-1000-8000-00805f9b34fb">Battery Service</option>
+                        <option value="0000180a-0000-1000-8000-00805f9b34fb">Device Info Service</option>
+                    </datalist>
+                    <button id="exploreServiceBtn">Explorer le Service</button>
+                </div>
+
+                <div id="serviceExplorationLog" class="log-container"></div>
+            </div>
 
             <div class="nav-buttons">
                 <button id="prevStep3">Précédent</button>
