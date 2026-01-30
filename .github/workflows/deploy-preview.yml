@@ -1,0 +1,73 @@
+name: Deploy Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  deploy-preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate version file
+        run: |
+          echo "{\"version\": \"$GITHUB_SHA\", \"timestamp\": \"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > public/version.json
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: public
+          target-folder: pr-${{ github.event.number }}
+          clean: true
+
+      - name: Comment on PR
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: |
+            ### 🚀 Deploy Preview Ready!
+
+            Your changes have been deployed to a temporary environment:
+            **https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/pr-${{ github.event.number }}/index.html**
+
+            _This preview will be updated automatically with new commits._
+          comment_tag: deploy_preview
+
+  cleanup-preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Remove Preview Folder
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+          if [ -d "pr-${{ github.event.number }}" ]; then
+            git rm -r pr-${{ github.event.number }}
+            git commit -m "Cleanup preview for PR #${{ github.event.number }}"
+            git push
+          else
+            echo "Preview folder pr-${{ github.event.number }} does not exist, skipping cleanup."
+          fi
+
+      - name: Comment on PR
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: |
+            ### 🗑️ Deploy Preview Removed
+
+            The preview environment has been cleaned up as the PR is closed.
+          comment_tag: deploy_preview
+          mode: upsert
