@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualiseur de Rapport Boks</title>
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Favicons for various browsers and devices -->
+    <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="icon-48.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="icon-128.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
+
+    <!-- Apple Touch Icon (for iOS devices) -->
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <meta name="theme-color" content="#1a73e8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a73e8;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #1557b0;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .info-label {
+            font-weight: bold;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .section h3 {
+            color: #1a73e8;
+            margin-top: 0;
+        }
+
+        .log-container {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 10px;
+            border-radius: 4px;
+            height: 150px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .qa-pair {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .qa-question {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .qa-answer {
+            color: #1a73e8;
+        }
+
+        .warning {
+            color: #ff9800;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #d93025;
+            font-weight: bold;
+        }
+
+        .success {
+            color: #1e8e3e;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Visualiseur de Rapport Boks</h1>
+        
+        <div class="card">
+            <h2>Entrée du Rapport</h2>
+            <p>Collez le JSON généré par l'outil de débogage ci-dessous :</p>
+            <textarea id="jsonInput" placeholder="Collez le JSON ici..."></textarea>
+            <button id="generateBtn">Générer le rapport</button>
+        </div>
+
+        <div id="reportContainer" style="display: none;">
+            <!-- Device Information -->
+            <div class="card">
+                <h2>Informations Appareil</h2>
+                <div class="info-grid" id="deviceInfoGrid"></div>
+            </div>
+
+            <!-- User Inputs -->
+            <div class="card">
+                <h2>Entrées Utilisateur</h2>
+                <div class="info-grid" id="userInputsGrid"></div>
+            </div>
+
+            <!-- Extra Data -->
+            <div class="card">
+                <h2>Données Supplémentaires</h2>
+                <div class="info-grid" id="extraDataGrid"></div>
+            </div>
+
+            <!-- Battery Status -->
+            <div class="card">
+                <h2>État de la Batterie</h2>
+                <div class="info-grid" id="batteryInfoGrid"></div>
+                
+                <div class="section">
+                    <h3>Données Propriétaires</h3>
+                    <div id="proprietaryBatteryData"></div>
+                </div>
+                
+                <div class="section">
+                    <h3>Avertissements</h3>
+                    <div id="batteryWarnings"></div>
+                </div>
+            </div>
+
+            <!-- Question Answers -->
+            <div class="card">
+                <h2>Réponses aux Questions</h2>
+                <div id="qaContainer"></div>
+            </div>
+        </div>
+    </div>
+    <script src="report.js"></script>
+</body>
+</html>
