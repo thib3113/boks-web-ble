@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boks Web BLE Controller</title>
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="icon-48.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="icon-128.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <meta name="theme-color" content="#1a73e8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a73e8;
+        }
+
+        .header-controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        h2, h3 {
+            margin-top: 0;
+        }
+
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #1557b0;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        button.danger {
+            background-color: #dc3545;
+        }
+
+        button.danger:hover {
+            background-color: #c82333;
+        }
+
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input-group label {
+            width: 200px;
+            font-weight: 500;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .status.connected { color: #28a745; }
+        .status.disconnected { color: #dc3545; }
+
+        #consoleLog {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 10px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .log-entry { margin: 2px 0; border-bottom: 1px solid #333; }
+        .log-tx { color: #4fc3f7; }
+        .log-rx { color: #ffb74d; }
+        .log-info { color: #81c784; }
+        .log-error { color: #e57373; }
+
+        #logsContainer {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+
+        .modal-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .modal-footer {
+            margin-top: 20px;
+            text-align: right;
+        }
+
+        .modal-footer button {
+            margin-left: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="webBluetoothWarning" style="display:none; padding: 10px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; margin-bottom: 15px; text-align: center; font-weight: bold;"></div>
+
+    <div class="container">
+        <div class="header-controls">
+            <select id="langSelector">
+                <option value="fr">Français</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+
+        <h1 data-i18n="title">Boks Web BLE Controller</h1>
+
+        <!-- Connection -->
+        <div class="card">
+            <h2 data-i18n="connection_title">Connection</h2>
+            <button id="connectBtn" data-i18n="connect_btn">Connect to Boks</button>
+            <button id="disconnectBtn" disabled data-i18n="disconnect_btn">Disconnect</button>
+            <div id="status" class="status disconnected" data-i18n="status_disconnected">Disconnected</div>
+        </div>
+
+        <!-- Open Door -->
+        <div class="card disabled" id="openDoorCard">
+            <h2 data-i18n="open_door_title">Open Door</h2>
+            <div class="input-group">
+                <input type="text" id="openCode" placeholder="6-digit Code" maxlength="6" data-i18n="open_code_placeholder">
+                <button id="openDoorBtn" data-i18n="open_door_btn">Open Door</button>
+            </div>
+        </div>
+
+        <!-- Code Management -->
+        <div class="card disabled" id="codeManagementCard">
+            <h2 data-i18n="code_management_title">Code Management</h2>
+
+            <div class="stats-grid">
+                <div>
+                    <div data-i18n="code_counts_master">Permanent Codes:</div>
+                    <strong id="countMaster">-</strong>
+                </div>
+                <div>
+                    <div data-i18n="code_counts_single">Single Use Codes:</div>
+                    <strong id="countSingle">-</strong>
+                </div>
+            </div>
+
+            <button id="countCodesBtn" data-i18n="count_codes_btn">Count Codes</button>
+            <button id="showCreateCodeModalBtn" data-i18n="create_code_btn">Create Code</button>
+        </div>
+
+        <!-- Maintenance -->
+        <div class="card disabled" id="maintenanceCard">
+            <h2 data-i18n="maintenance_title">Maintenance</h2>
+
+            <div class="section">
+                <h3 data-i18n="delete_master_title">Delete Permanent Code</h3>
+                <div class="input-group">
+                    <label data-i18n="config_key_label">Configuration Key (8 chars):</label>
+                    <input type="text" id="maintConfigKey" placeholder="e.g. AABBCCDD" maxlength="8">
+                </div>
+                <div class="input-group">
+                    <label data-i18n="index_label">Index (0-99):</label>
+                    <input type="number" id="deleteIndex" value="0" min="0" max="99">
+                </div>
+                <button id="deleteMasterBtn" class="danger" data-i18n="delete_btn">Delete</button>
+            </div>
+        </div>
+
+        <!-- Device Info -->
+        <div class="card disabled" id="deviceInfo">
+            <h2 data-i18n="device_info_title">Device Info</h2>
+            <div class="input-group">
+                <label data-i18n="battery_level">Battery Level:</label>
+                <span id="batteryLevel">-</span>
+            </div>
+            
+            <div id="batteryAdvanced" style="border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px;">
+                <h3 data-i18n="battery_advanced">Advanced Battery Info</h3>
+                <p style="font-size: 0.9em; color: #666; font-style: italic;" data-i18n="battery_advanced_hint">
+                    (Requires door opening to update)
+                </p>
+                
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <label data-i18n="battery_type">Battery Type:</label>
+                    <select id="batteryTypeSelector">
+                        <option value="aaa" selected>8x AAA (Standard)</option>
+                        <option value="lsh14">LSH14 (Lithium)</option>
+                    </select>
+                </div>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img id="batteryImage" src="https://www.batteries4pro.com/25694-pos_thickbox/10-piles-alcaline-industrial-pro-varta-aaa-lr03.jpg" alt="Battery Type" style="height: 100px; border-radius: 4px; object-fit: contain;">
+                </div>
+                
+                <div id="batteryWaiting" style="color: #1a73e8;" data-i18n="battery_waiting">
+                    Waiting for door opening...
+                </div>
+
+                <div id="batteryData" style="display: none;">
+                    <div class="input-group">
+                        <label data-i18n="battery_format">Format:</label>
+                        <span id="batteryFormat">-</span>
+                    </div>
+                    <div class="input-group">
+                        <label data-i18n="battery_temp">Temperature:</label>
+                        <span id="batteryTemp">-</span>
+                    </div>
+                    
+                    <div style="margin-top: 10px;">
+                        <strong data-i18n="battery_voltages">Voltages (mV):</strong>
+                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; text-align: center; margin-top: 5px; font-size: 0.9em;">
+                            <div><div>First</div><div id="batVFirst">-</div></div>
+                            <div><div>Min</div><div id="batVMin">-</div></div>
+                            <div><div>Mean</div><div id="batVMean">-</div></div>
+                            <div><div>Max</div><div id="batVMax">-</div></div>
+                            <div><div>Last</div><div id="batVLast">-</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="batteryAlert" style="display: none; margin-top: 15px; padding: 10px; background-color: #ffebee; border: 1px solid #ef9a9a; border-radius: 4px; color: #c62828;">
+                    <strong>WARNING:</strong> Low voltage detected! <br>
+                    <span id="batteryAlertMsg"></span>
+                </div>
+            </div>
+
+            <div id="deviceInfoContainer" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Logs -->
+        <div class="card disabled" id="logsCard">
+            <h3 data-i18n="logs_title">Logs</h3>
+            <button id="getLogsBtn" data-i18n="get_logs_btn">Get Logs</button>
+            <div id="logsContainer"></div>
+        </div>
+
+        <!-- Console -->
+        <div class="card">
+            <h3 data-i18n="console_log_title">Console Log</h3>
+            <div id="consoleLog"></div>
+            <button id="clearLogBtn" data-i18n="clear_log_btn">Clear Log</button>
+        </div>
+    </div>
+
+    <!-- Create Code Modal -->
+    <div id="createCodeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" data-i18n="modal_create_title">Create New Code</div>
+
+            <div class="input-group">
+                <label data-i18n="config_key_label">Configuration Key (8 chars):</label>
+                <input type="text" id="modalConfigKey" placeholder="e.g. AABBCCDD" maxlength="8">
+            </div>
+
+            <div class="input-group">
+                <label data-i18n="modal_code_label">New Code (6 chars):</label>
+                <input type="text" id="modalNewCode" placeholder="e.g. 1234AB" maxlength="6">
+            </div>
+
+            <div class="input-group">
+                <label data-i18n="modal_type_label">Type:</label>
+                <select id="modalCodeType">
+                    <option value="master" data-i18n="type_master">Permanent Code (0x11)</option>
+                    <option value="single" data-i18n="type_single">Single Use (0x12)</option>
+                    <option value="multi" data-i18n="type_multi">Multi Use (0x13)</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="modalIndexGroup">
+                <label data-i18n="modal_index_label">Index (Permanent only):</label>
+                <input type="number" id="modalCodeIndex" value="0" min="0" max="99">
+                <small style="display:block; width:100%; color:#666; font-style:italic;" data-i18n="modal_index_help">Memory slot 0-99.</small>
+            </div>
+
+            <div class="modal-footer">
+                <button id="closeModalBtn" style="background-color: #6c757d;" data-i18n="modal_cancel">Cancel</button>
+                <button id="confirmCreateCodeBtn" data-i18n="modal_confirm">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="updateNotification" style="display: none; position: fixed; bottom: 20px; right: 20px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-left: 5px solid #1a73e8; z-index: 1000;">
+        <div style="margin-bottom: 10px; font-weight: bold;" data-i18n="update_available_title">New version available!</div>
+        <div style="font-size: 14px; margin-bottom: 15px; color: #666;" data-i18n="update_available_msg">A new update has been published.</div>
+        <button id="updateBtn" style="width: 100%;" data-i18n="update_btn">Update now</button>
+    </div>
+
+    <script src="ble-utils.js"></script>
+    <script src="locales.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
