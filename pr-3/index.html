@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boks Web BLE</title>
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Favicons for various browsers and devices -->
+    <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="icon-48.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="icon-128.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
+
+    <!-- Apple Touch Icon (for iOS devices) -->
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <meta name="theme-color" content="#1a73e8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a73e8;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        h2, h3 {
+            margin-top: 0;
+        }
+
+        button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #1557b0;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-group label {
+            width: 200px;
+            font-weight: 500;
+        }
+
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .status.connected {
+            color: #28a745;
+        }
+
+        .status.disconnected {
+            color: #dc3545;
+        }
+
+        #consoleLog {
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 10px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-tx { color: #4fc3f7; }
+        .log-rx { color: #ffb74d; }
+        .log-info { color: #81c784; }
+        .log-error { color: #e57373; }
+
+        #logsContainer {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="webBluetoothWarning" style="display:none; padding: 10px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; margin-bottom: 15px; text-align: center; font-weight: bold;">
+        <!-- Message will be inserted here by JavaScript -->
+    </div>
+    <div class="container">
+        <h1>Boks Web BLE Controller</h1>
+
+        <div class="card">
+            <h2>Connection</h2>
+            <button id="connectBtn">Connect to Boks</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+            <div id="status" class="status disconnected">Disconnected</div>
+        </div>
+
+        <div class="card disabled" id="deviceInfo">
+            <h2>Device Info</h2>
+            <div class="input-group">
+                <label>Battery Level:</label>
+                <span id="batteryLevel">-</span>
+            </div>
+            
+            <div id="batteryAdvanced" style="border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px;">
+                <h3>Advanced Battery Info</h3>
+                <p style="font-size: 0.9em; color: #666; font-style: italic;">
+                    (Requires door opening to update)
+                </p>
+                
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <label>Battery Type:</label>
+                    <select id="batteryTypeSelector">
+                        <option value="aaa" selected>8x AAA (Standard)</option>
+                        <option value="lsh14">LSH14 (Lithium)</option>
+                    </select>
+                </div>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img id="batteryImage" src="https://www.batteries4pro.com/25694-pos_thickbox/10-piles-alcaline-industrial-pro-varta-aaa-lr03.jpg" alt="Battery Type" style="height: 100px; border-radius: 4px; object-fit: contain;">
+                </div>
+                
+                <div id="batteryWaiting" style="color: #1a73e8;">
+                    Waiting for door opening...
+                </div>
+
+                <div id="batteryData" style="display: none;">
+                    <div class="input-group">
+                        <label>Format:</label>
+                        <span id="batteryFormat">-</span>
+                    </div>
+                    <div class="input-group">
+                        <label>Temperature:</label>
+                        <span id="batteryTemp">-</span>
+                    </div>
+                    
+                    <div style="margin-top: 10px;">
+                        <strong>Voltages (mV):</strong>
+                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; text-align: center; margin-top: 5px; font-size: 0.9em;">
+                            <div>
+                                <div>First</div>
+                                <div id="batVFirst">-</div>
+                            </div>
+                            <div>
+                                <div>Min</div>
+                                <div id="batVMin">-</div>
+                            </div>
+                            <div>
+                                <div>Mean</div>
+                                <div id="batVMean">-</div>
+                            </div>
+                            <div>
+                                <div>Max</div>
+                                <div id="batVMax">-</div>
+                            </div>
+                            <div>
+                                <div>Last</div>
+                                <div id="batVLast">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="batteryAlert" style="display: none; margin-top: 15px; padding: 10px; background-color: #ffebee; border: 1px solid #ef9a9a; border-radius: 4px; color: #c62828;">
+                    <strong>WARNING:</strong> Low voltage detected! <br>
+                    <span id="batteryAlertMsg"></span>
+                </div>
+            </div>
+
+            <div id="deviceInfoContainer" style="margin-top: 20px;">
+                <!-- Dynamic Device Info will be inserted here -->
+            </div>
+        </div>
+
+        <div class="card disabled" id="controls">
+            <div class="section">
+                <h3>Open Door</h3>
+                <div class="input-group">
+                    <input type="text" id="openCode" placeholder="6-digit Code" maxlength="6">
+                    <button id="openDoorBtn">Open Door</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Create Code</h3>
+                <div class="input-group">
+                    <label>Configuration Key (8 chars):</label>
+                    <input type="text" id="configKey" placeholder="e.g. AABBCCDD" maxlength="8">
+                </div>
+                <div class="input-group">
+                    <label>New Code (6 chars [0-9, A, B]):</label>
+                    <input type="text" id="newCode" placeholder="e.g. 1234AB" maxlength="6">
+                </div>
+                <div class="input-group">
+                    <label>Type:</label>
+                    <select id="codeType">
+                        <option value="master">Master Code (0x11)</option>
+                        <option value="single">Single Use (0x12)</option>
+                        <option value="multi">Multi Use (0x13)</option>
+                    </select>
+                </div>
+                <div class="input-group" id="indexGroup">
+                    <label>Index (Master only):</label>
+                    <input type="number" id="codeIndex" value="0" min="0" max="255">
+                </div>
+                <button id="createCodeBtn">Create Code</button>
+            </div>
+
+            <div class="section">
+                <h3>Logs</h3>
+                <button id="getLogsBtn">Get Logs</button>
+                <div id="logsContainer"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Console Log</h3>
+            <div id="consoleLog"></div>
+            <button id="clearLogBtn">Clear Log</button>
+        </div>
+    </div>
+    <div id="updateNotification" style="display: none; position: fixed; bottom: 20px; right: 20px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-left: 5px solid #1a73e8; z-index: 1000;">
+        <div style="margin-bottom: 10px; font-weight: bold;">Nouvelle version disponible !</div>
+        <div style="font-size: 14px; margin-bottom: 15px; color: #666;">Une nouvelle mise à jour a été publiée.</div>
+        <button id="updateBtn" style="width: 100%;">Mettre à jour maintenant</button>
+    </div>
+
+    <script src="ble-utils.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
