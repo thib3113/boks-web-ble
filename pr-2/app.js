@@ -39,11 +39,9 @@ const createCodeModal = document.getElementById('createCodeModal');
 // Initialization
 window.addEventListener('DOMContentLoaded', () => {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            for(let registration of registrations) {
-                registration.unregister();
-            }
-        });
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('SW registered', reg))
+            .catch(err => console.log('SW failed', err));
     }
 
     if (typeof translations !== 'undefined') {
@@ -637,6 +635,8 @@ function parseLogEvent(data) {
 }
 
 // ... include logging helpers and checkWebBluetoothAvailability from before ...
+// checkWebBluetoothAvailability is in ble-utils.js
+
 async function fetchInitialDeviceInfo() {
     try {
         const infoService = await server.getPrimaryService(DEVICE_INFO_SERVICE_UUID);
