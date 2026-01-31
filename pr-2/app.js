@@ -18,9 +18,14 @@ let lastBatteryData = null;
 const connectBtn = document.getElementById('connectBtn');
 const disconnectBtn = document.getElementById('disconnectBtn');
 const statusDot = document.getElementById('statusDot');
-const statusText = document.getElementById('statusText');
 const langSelector = document.getElementById('langSelector');
 const batteryTypeSelector = document.getElementById('batteryTypeSelector');
+
+// Drawer Elements
+const drawer = document.getElementById('drawer');
+const drawerOverlay = document.getElementById('drawerOverlay');
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const closeDrawerBtn = document.getElementById('closeDrawerBtn');
 
 // Modals
 const createCodeModal = document.getElementById('createCodeModal');
@@ -32,7 +37,6 @@ window.addEventListener('DOMContentLoaded', () => {
         navigator.serviceWorker.getRegistrations().then(function(registrations) {
             for(let registration of registrations) {
                 registration.unregister();
-                console.log('SW unregistered');
             }
         });
     }
@@ -43,22 +47,27 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Default Tab
     switchTab('home');
-
-    // Version Display
-    document.getElementById('appVersionDisplay').textContent = '2.0.0';
 });
 
 // Event Listeners
 connectBtn.addEventListener('click', connect);
 disconnectBtn.addEventListener('click', disconnect);
 
-// Navigation
-document.querySelectorAll('.nav-item').forEach(item => {
+// Navigation (Bottom Bar & Drawer items)
+document.querySelectorAll('.nav-item, .drawer-item').forEach(item => {
     item.addEventListener('click', () => {
         const tab = item.getAttribute('data-tab');
-        if (tab) switchTab(tab);
+        if (tab) {
+            switchTab(tab);
+            closeDrawer();
+        }
     });
 });
+
+// Drawer Toggle
+hamburgerBtn.addEventListener('click', openDrawer);
+closeDrawerBtn.addEventListener('click', closeDrawer);
+drawerOverlay.addEventListener('click', closeDrawer);
 
 // Lang
 if (langSelector) {
@@ -96,18 +105,35 @@ batteryTypeSelector.addEventListener('change', () => {
 
 // --- Core Functions ---
 
-function switchTab(tabId) {
-    // Hide all
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+function openDrawer() {
+    drawer.classList.add('open');
+    drawerOverlay.classList.add('open');
+}
 
-    // Show target
+function closeDrawer() {
+    drawer.classList.remove('open');
+    drawerOverlay.classList.remove('open');
+}
+
+function switchTab(tabId) {
+    // Hide all contents
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    // Deselect all nav items
+    document.querySelectorAll('.nav-item, .drawer-item').forEach(el => el.classList.remove('active'));
+
+    // Show target content
     const target = document.getElementById(`tab-${tabId}`);
     if (target) {
         target.classList.add('active');
-        const navItem = document.querySelector(`.nav-item[data-tab="${tabId}"]`);
-        if (navItem) navItem.classList.add('active');
     }
+
+    // Activate Nav Item (Bottom Bar)
+    const navItem = document.querySelector(`.nav-item[data-tab="${tabId}"]`);
+    if (navItem) navItem.classList.add('active');
+
+    // Activate Drawer Item
+    const drawerItem = document.querySelector(`.drawer-item[data-tab="${tabId}"]`);
+    if (drawerItem) drawerItem.classList.add('active');
 }
 
 function setLanguage(lang) {
@@ -169,16 +195,14 @@ function loadStorage() {
             defaultOpenCodeInput.value = storedData.defaultOpenCode || '';
 
             updateHomeUI();
-            log(`Loaded data for ${currentDeviceId}`, 'info');
 
             // Onboarding Check
             if (!storedData.configKey) {
                 switchTab('config');
-                // Optional: Alert user?
             }
 
         } catch (e) {
-            log('Error loading storage', 'error');
+            console.error('Storage error', e);
         }
     } else {
         // First time
@@ -198,7 +222,6 @@ async function connect() {
     }
 
     try {
-        log('Requesting Device...');
         device = await navigator.bluetooth.requestDevice({
             filters: [{ services: [SERVICE_UUID] }],
             optionalServices: [BATTERY_SERVICE_UUID, DEVICE_INFO_SERVICE_UUID]
@@ -208,7 +231,6 @@ async function connect() {
 
         device.addEventListener('gattserverdisconnected', onDisconnected);
 
-        log('Connecting...');
         server = await device.gatt.connect();
         service = await server.getPrimaryService(SERVICE_UUID);
         writeChar = await service.getCharacteristic(WRITE_CHAR_UUID);
@@ -219,8 +241,6 @@ async function connect() {
 
         // Success
         statusDot.className = 'status-dot connected';
-        statusText.textContent = translations[currentLang].status_connected || 'Connecté';
-        statusText.style.color = '#28a745';
         connectBtn.style.display = 'none';
         disconnectBtn.style.display = 'inline-block';
 
@@ -233,7 +253,7 @@ async function connect() {
         updateBatteryInfo();
 
     } catch (error) {
-        log('Connection failed: ' + error, 'error');
+        console.error(error);
     }
 }
 
@@ -245,15 +265,11 @@ function disconnect() {
 
 function onDisconnected() {
     statusDot.className = 'status-dot disconnected';
-    statusText.textContent = translations[currentLang].status_disconnected || 'Déconnecté';
-    statusText.style.color = '#dc3545';
     connectBtn.style.display = 'inline-block';
     disconnectBtn.style.display = 'none';
 
     document.getElementById('openDoorBtn').disabled = true;
-    document.getElementById('headerBattery').style.display = 'none';
-
-    log('Device disconnected', 'warning');
+    document.getElementById('headerBatteryCard').style.display = 'none'; // Fixed ID reference
 }
 
 async function sendPacket(packet) {
@@ -276,12 +292,10 @@ function handleNotifications(event) {
             const s = (value[4] << 8) | value[5];
             document.getElementById('countMaster').textContent = m;
             document.getElementById('countSingle').textContent = s;
-            log(`Codes: Master=${m}, Single=${s}`, 'success');
         }
     }
     else if (opcode === OP_NOTIFY_LOGS_COUNT) {
         const count = (value[2] << 8) | value[3];
-        log(`Logs count: ${count}`, 'info');
         if (count > 0) requestLogs();
     }
     else if (opcode === OP_ANSWER_DOOR_STATUS || opcode === OP_NOTIFY_DOOR_STATUS) {
@@ -293,7 +307,7 @@ function handleNotifications(event) {
         }
     }
     else if (opcode === OP_NOTIFY_SET_CONFIGURATION_SUCCESS) {
-        alert(translations[currentLang].config_success || 'Configuration appliquée avec succès');
+        alert(translations[currentLang].config_success || 'OK');
     }
     else if (opcode >= 0x86 && opcode <= 0xA2) {
         parseLogEvent(value);
@@ -305,7 +319,7 @@ function handleNotifications(event) {
 async function openDoor() {
     const code = document.getElementById('homeOpenCode').value;
     if (!code || code.length !== 6) {
-        alert(translations[currentLang].alert_code_length || 'Code invalide (6 chars)');
+        alert(translations[currentLang].alert_code_length || 'Code 6 chars');
         return;
     }
     const packet = new Uint8Array(8);
@@ -317,7 +331,7 @@ async function openDoor() {
 
 function showCreateModal() {
     if (!storedData.configKey) {
-        alert(translations[currentLang].missing_key || 'Clé manquante. Allez dans Paramètres.');
+        alert(translations[currentLang].missing_key || 'Clé manquante.');
         switchTab('config');
         return;
     }
@@ -332,7 +346,7 @@ async function createCode() {
 
     if (!configKey) return;
     if (newCode.length !== 6) {
-        alert(translations[currentLang].alert_code_length || 'Code must be 6 chars');
+        alert(translations[currentLang].alert_code_length);
         return;
     }
 
@@ -362,7 +376,7 @@ async function deleteMasterCode() {
     const index = parseInt(document.getElementById('deleteIndex').value);
 
     if (!configKey) {
-        alert(translations[currentLang].missing_key || 'Clé manquante');
+        alert(translations[currentLang].missing_key);
         switchTab('config');
         return;
     }
@@ -390,21 +404,19 @@ async function toggleVigik(e) {
     const configKey = storedData.configKey;
 
     if (!configKey) {
-        e.target.checked = !enabled; // Revert
-        alert(translations[currentLang].missing_key || 'Clé manquante');
+        e.target.checked = !enabled;
+        alert(translations[currentLang].missing_key);
         switchTab('config');
         return;
     }
 
-    // Packet: [0x16, 0x0A, KEY(8), R(1), P(1), CS]
-    // R=0x01 (Scan La Poste), P=0x01 (Enable) / 0x00 (Disable)
     const packet = new Uint8Array(13);
     let p = 0;
     packet[p++] = OP_SET_CONFIGURATION;
     packet[p++] = 0x0A;
     for (let i=0; i<8; i++) packet[p++] = configKey.charCodeAt(i);
-    packet[p++] = 0x01; // Type (Scan La Poste)
-    packet[p++] = enabled ? 0x01 : 0x00; // Value
+    packet[p++] = 0x01;
+    packet[p++] = enabled ? 0x01 : 0x00;
 
     let cs = 0;
     for (let i=0; i<p; i++) cs = (cs + packet[i]) % 256;
@@ -442,17 +454,14 @@ async function updateBatteryInfo() {
 function parseBatteryInfo(value) {
     const data = new Uint8Array(value.buffer);
     const len = data.length;
-    let format = 'Unknown';
-    let temp = '-';
     let voltages = { first: '-', min: '-', mean: '-', max: '-', last: '-' };
     let alertVoltage = null;
+    let temp = '-';
 
-    // Elements
     const batteryAlertEl = document.getElementById('batteryAlert');
     batteryAlertEl.style.display = 'none';
 
     if (len === 6) {
-        format = 'measures-first-min-mean-max-last';
         voltages.first = data[0] * 100;
         voltages.min = data[1] * 100;
         voltages.mean = data[2] * 100;
@@ -461,23 +470,18 @@ function parseBatteryInfo(value) {
         temp = (data[5] - 25) + '°C';
         alertVoltage = Math.min(voltages.min, voltages.last);
     } else if (len === 4) {
-        format = 'measures-t1-t5-t10';
         voltages.first = data[0] * 100 + ' (T1)';
         voltages.min = data[1] !== 255 ? data[1] * 100 + ' (T5)' : '-';
         voltages.mean = data[2] !== 255 ? data[2] * 100 + ' (T10)' : '-';
         temp = (data[3] - 25) + '°C';
         if (data[0] > 0) alertVoltage = data[0] * 100;
     } else if (len === 1) {
-        format = 'measure-single';
         voltages.first = data[0] + '%';
     }
 
-    // Header Update
     const levelStr = String(voltages.first).includes('(') ? voltages.first.split(' ')[0] : (typeof voltages.first === 'number' ? (voltages.first/1000).toFixed(1) + 'V' : voltages.first);
-    document.getElementById('headerBattery').style.display = 'flex';
+    document.getElementById('headerBatteryCard').style.display = 'block';
     document.getElementById('headerBatteryLevel').textContent = levelStr;
-
-    // Tab Update
     document.getElementById('batLevel').textContent = levelStr;
     document.getElementById('batTemp').textContent = temp;
 
@@ -496,12 +500,12 @@ function analyzeBatteryHealth(voltage_mV, alertEl) {
     let msg = '';
 
     if (type === 'aaa') {
-        if (voltage_mV < 7200) msg = 'CRITICAL: Replace 8x AAA';
-        else if (voltage_mV < 8000) msg = 'LOW: Shutdown imminent';
-        else if (voltage_mV < 9600) msg = 'WARNING: Low battery';
+        if (voltage_mV < 7200) msg = 'CRITICAL';
+        else if (voltage_mV < 8000) msg = 'LOW';
+        else if (voltage_mV < 9600) msg = 'WARNING';
     } else {
-        if (voltage_mV < 3000) msg = 'CRITICAL: Replace LSH14';
-        else if (voltage_mV <= 3300) msg = 'URGENT: End of life';
+        if (voltage_mV < 3000) msg = 'CRITICAL';
+        else if (voltage_mV <= 3300) msg = 'URGENT';
     }
 
     if (msg) {
@@ -536,7 +540,7 @@ async function fetchInitialDeviceInfo() {
         }
 
     } catch (e) {
-        log('Info fetch error: ' + e, 'warning');
+        log('Info error', 'warning');
     }
 }
 
