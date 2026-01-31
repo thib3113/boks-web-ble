@@ -260,28 +260,38 @@ function renderCreatedCodes() {
 // --- BLE Functions ---
 
 async function connect() {
-    const btStatus = checkWebBluetoothAvailability();
-    if (!btStatus.isAvailable) {
-        const w = document.getElementById('webBluetoothWarning');
-        w.style.display = 'block';
-        w.textContent = btStatus.message;
-        return;
+    // If not using Mock, check availability
+    if (!navigator.bluetooth || navigator.bluetooth.constructor.name !== 'MockBluetooth') {
+        const btStatus = checkWebBluetoothAvailability();
+        if (!btStatus.isAvailable) {
+            const w = document.getElementById('webBluetoothWarning');
+            w.style.display = 'block';
+            w.textContent = btStatus.message;
+            return;
+        }
     }
 
     try {
+        log('Requesting device...', 'info');
         device = await navigator.bluetooth.requestDevice({
             filters: [{ services: [SERVICE_UUID] }],
             optionalServices: [BATTERY_SERVICE_UUID, DEVICE_INFO_SERVICE_UUID]
         });
+        log('Device found: ' + device.id, 'info');
 
         currentDeviceId = device.id;
         device.addEventListener('gattserverdisconnected', onDisconnected);
 
+        log('Connecting GATT...', 'info');
         server = await device.gatt.connect();
+        log('Getting Service...', 'info');
         service = await server.getPrimaryService(SERVICE_UUID);
+        log('Getting Write Char...', 'info');
         writeChar = await service.getCharacteristic(WRITE_CHAR_UUID);
+        log('Getting Notify Char...', 'info');
         notifyChar = await service.getCharacteristic(NOTIFY_CHAR_UUID);
 
+        log('Starting Notif...', 'info');
         await notifyChar.startNotifications();
         notifyChar.addEventListener('characteristicvaluechanged', handleNotifications);
 
@@ -642,7 +652,8 @@ async function fetchInitialDeviceInfo() {
         }
 
     } catch (e) {
-        log('Info error', 'warning');
+        log('Info error: ' + e.message, 'warning');
+        console.error(e);
     }
 }
 
@@ -669,3 +680,24 @@ function logPacket(label, data) {
     const hex = Array.from(data).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
     log(`${label}: [${opName}] ${hex}`, label === 'TX' ? 'tx' : 'rx');
 }
+
+// Test Mode
+window.enableTestMode = function() {
+    disconnect();
+    if (typeof MockBluetooth !== 'undefined') {
+        try {
+            Object.defineProperty(navigator, 'bluetooth', {
+                value: new MockBluetooth(),
+                writable: true,
+                configurable: true
+            });
+            log('Test Mode Enabled: navigator.bluetooth mocked', 'info');
+            alert('Test Mode Enabled');
+        } catch(e) {
+            console.error('Failed to override navigator.bluetooth', e);
+            alert('Test Mode Failed (Browser Restriction?)');
+        }
+    } else {
+        console.error('MockBluetooth not loaded');
+    }
+};
