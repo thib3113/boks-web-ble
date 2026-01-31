@@ -17,6 +17,8 @@ const translations = {
         'home_open_title': 'Ouvrir la Porte',
         'home_open_label': 'Code d\'ouverture :',
         'home_open_btn': 'OUVRIR',
+        'home_disconnected_title': 'Boks non connectée',
+        'home_tap_open': 'Appuyez pour ouvrir',
 
         // Config
         'config_title': 'Configuration',
@@ -72,6 +74,7 @@ const translations = {
 
         // Alerts
         'alert_code_length': 'Le code doit faire 6 caractères',
+        'alert_default_code_missing': 'Configurez le code par défaut dans Paramètres.',
     },
     'en': {
         // Nav
@@ -91,6 +94,8 @@ const translations = {
         'home_open_title': 'Open Door',
         'home_open_label': 'Opening Code:',
         'home_open_btn': 'OPEN',
+        'home_disconnected_title': 'Boks disconnected',
+        'home_tap_open': 'Tap to open',
 
         // Config
         'config_title': 'Configuration',
@@ -146,5 +151,6 @@ const translations = {
 
         // Alerts
         'alert_code_length': 'Code must be 6 chars',
+        'alert_default_code_missing': 'Please set default code in Settings.',
     }
 };

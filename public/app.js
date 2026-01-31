@@ -21,6 +21,12 @@ const statusDot = document.getElementById('statusDot');
 const langSelector = document.getElementById('langSelector');
 const batteryTypeSelector = document.getElementById('batteryTypeSelector');
 
+// Home Elements
+const homeDisconnectedState = document.getElementById('homeDisconnectedState');
+const homeConnectedState = document.getElementById('homeConnectedState');
+const bigConnectBtn = document.getElementById('bigConnectBtn');
+const bigOpenDoorBtn = document.getElementById('bigOpenDoorBtn');
+
 // Drawer Elements
 const drawer = document.getElementById('drawer');
 const drawerOverlay = document.getElementById('drawerOverlay');
@@ -45,14 +51,19 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     switchTab('home');
+
+    // Initial State
     updateConnectionState(false);
-    document.getElementById('appVersionDisplay').textContent = '2.1.0';
+
+    document.getElementById('appVersionDisplay').textContent = '2.2.0';
 });
 
 // Event Listeners
 connectBtn.addEventListener('click', connect);
+bigConnectBtn.addEventListener('click', connect);
 disconnectBtn.addEventListener('click', disconnect);
 
+// Navigation
 document.querySelectorAll('.nav-item, .drawer-item').forEach(item => {
     item.addEventListener('click', () => {
         const tab = item.getAttribute('data-tab');
@@ -71,27 +82,33 @@ if (langSelector) {
     langSelector.addEventListener('change', (e) => setLanguage(e.target.value));
 }
 
+// Config
 const configKeyInput = document.getElementById('configKey');
 const defaultOpenCodeInput = document.getElementById('defaultOpenCode');
 document.getElementById('saveConfigBtn').addEventListener('click', saveConfig);
 document.getElementById('vigikToggle').addEventListener('change', toggleVigik);
 
-document.getElementById('openDoorBtn').addEventListener('click', openDoor);
+// Home Action
+bigOpenDoorBtn.addEventListener('click', openDoor);
 
+// Codes
 document.getElementById('refreshCodesBtn').addEventListener('click', countCodes);
 document.getElementById('showCreateCodeModalBtn').addEventListener('click', showCreateModal);
 document.getElementById('deleteMasterBtn').addEventListener('click', deleteMasterCode);
 document.getElementById('wipeMastersBtn').addEventListener('click', wipeMasterCodes);
 
+// Modal
 document.getElementById('closeModalBtn').addEventListener('click', () => createCodeModal.classList.remove('visible'));
 document.getElementById('confirmCreateCodeBtn').addEventListener('click', createCode);
 document.getElementById('modalCodeType').addEventListener('change', (e) => {
     document.getElementById('modalIndexGroup').style.display = e.target.value === 'master' ? 'block' : 'none';
 });
 
+// Logs
 document.getElementById('getLogsBtn').addEventListener('click', getLogs);
 document.getElementById('clearLogBtn').addEventListener('click', () => document.getElementById('consoleLog').innerHTML = '');
 
+// Battery
 batteryTypeSelector.addEventListener('change', () => {
     if (lastBatteryData) parseBatteryInfo(lastBatteryData);
 });
@@ -100,15 +117,33 @@ batteryTypeSelector.addEventListener('change', () => {
 
 function updateConnectionState(connected) {
     const disabled = !connected;
-    const ids = [
-        'openDoorBtn', 'refreshCodesBtn', 'showCreateCodeModalBtn',
-        'deleteMasterBtn', 'wipeMastersBtn', 'getLogsBtn', 'vigikToggle'
+
+    // Toggle Home View
+    if (connected) {
+        homeDisconnectedState.style.display = 'none';
+        homeConnectedState.style.display = 'flex';
+        hamburgerBtn.style.display = 'block'; // Show Menu
+    } else {
+        homeDisconnectedState.style.display = 'flex';
+        homeConnectedState.style.display = 'none';
+        hamburgerBtn.style.display = 'none'; // Hide Menu
+        closeDrawer(); // Close if open
+    }
+
+    // Disable Actions inside tabs (but keep tabs accessible for stored data)
+    const actionIds = [
+        'refreshCodesBtn',
+        'showCreateCodeModalBtn',
+        'deleteMasterBtn',
+        'wipeMastersBtn',
+        'getLogsBtn',
+        'vigikToggle'
     ];
-    ids.forEach(id => {
+
+    actionIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = disabled;
     });
-    if (connected) updateHomeUI();
 }
 
 function openDrawer() {
@@ -157,22 +192,6 @@ function saveConfig() {
     storedData.defaultOpenCode = defaultOpenCodeInput.value;
     saveStorage();
     alert(currentLang === 'fr' ? 'Configuration enregistrée' : 'Configuration saved');
-    updateHomeUI();
-}
-
-function updateHomeUI() {
-    const homeInput = document.getElementById('homeOpenCode');
-    const openBtn = document.getElementById('openDoorBtn');
-
-    if (storedData.defaultOpenCode) {
-        homeInput.value = storedData.defaultOpenCode;
-    }
-
-    if (device && device.gatt.connected) {
-        openBtn.disabled = false;
-    } else {
-        openBtn.disabled = true;
-    }
 }
 
 function saveStorage() {
@@ -187,12 +206,10 @@ function loadStorage() {
         try {
             const parsed = JSON.parse(data);
             storedData = { ...storedData, ...parsed };
-            // Init createdCodes if missing
             if (!storedData.createdCodes) storedData.createdCodes = [];
 
             configKeyInput.value = storedData.configKey || '';
             defaultOpenCodeInput.value = storedData.defaultOpenCode || '';
-            updateHomeUI();
             renderCreatedCodes();
 
             if (!storedData.configKey) switchTab('config');
@@ -209,8 +226,6 @@ function renderCreatedCodes() {
     const list = document.getElementById('createdCodesList');
     if (!list) return;
     list.innerHTML = '';
-
-    // Sort by date desc
     const codes = (storedData.createdCodes || []).sort((a,b) => b.date - a.date);
 
     if (codes.length === 0) {
@@ -292,7 +307,6 @@ function onDisconnected() {
     statusDot.className = 'status-dot disconnected';
     connectBtn.style.display = 'inline-block';
     disconnectBtn.style.display = 'none';
-    document.getElementById('headerBatteryCard').style.display = 'none';
 
     updateConnectionState(false);
     log('Device disconnected', 'warning');
@@ -356,9 +370,11 @@ function handleNotifications(event) {
 // Features
 
 async function openDoor() {
-    const code = document.getElementById('homeOpenCode').value;
+    const code = storedData.defaultOpenCode; // Use stored default
+
     if (!code || code.length !== 6) {
-        alert(translations[currentLang].alert_code_length);
+        alert(translations[currentLang].alert_default_code_missing || 'Configurez le code par défaut dans Paramètres.');
+        switchTab('config');
         return;
     }
     const packet = new Uint8Array(8);
@@ -552,7 +568,6 @@ function parseBatteryInfo(value) {
     }
 
     const levelStr = String(voltages.first).includes('(') ? voltages.first.split(' ')[0] : (typeof voltages.first === 'number' ? (voltages.first/1000).toFixed(1) + 'V' : voltages.first);
-    document.getElementById('headerBatteryCard').style.display = 'block';
     document.getElementById('headerBatteryLevel').textContent = levelStr;
     document.getElementById('batLevel').textContent = levelStr;
     document.getElementById('batTemp').textContent = temp;
@@ -589,18 +604,10 @@ function parseLogEvent(data) {
     const opName = OPCODE_NAMES[op] || 'UNK';
     const div = document.createElement('div');
 
-    // Check if valid opening/usage to mark code as used
-    // 0x86: CODE_BLE_VALID_HISTORY
-    // 0x87: CODE_KEY_VALID_HISTORY
     if (op === 0x86 || op === 0x87) {
-        // Payload: [AGE(3), CODE(6)...]
-        // 0x86 len 17 -> Age at 2,3,4. Code at 5..10
-        // 0x87 len 9 -> Age at 2,3,4. Code at 5..10
         if (data.length >= 11) {
             const codeBytes = data.slice(5, 11);
             const codeStr = new TextDecoder().decode(codeBytes);
-
-            // Find match
             if (storedData.createdCodes) {
                 const match = storedData.createdCodes.find(c => c.code === codeStr && c.type === 'single' && c.status !== 'used');
                 if (match) {
@@ -620,8 +627,7 @@ function parseLogEvent(data) {
 }
 
 // ... include logging helpers and checkWebBluetoothAvailability from before ...
-function fetchInitialDeviceInfo() {
-    // ... same as before
+async function fetchInitialDeviceInfo() {
     try {
         const infoService = await server.getPrimaryService(DEVICE_INFO_SERVICE_UUID);
         const char = await infoService.getCharacteristic('00002a26-0000-1000-8000-00805f9b34fb');
