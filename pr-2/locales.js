@@ -28,6 +28,7 @@ const translations = {
         'save_btn': 'Enregistrer',
         'config_success': 'Configuration enregistrée',
         'missing_key': 'Clé manquante. Allez dans Paramètres.',
+        'code_created': 'Code créé avec succès !',
 
         // Vigik
         'vigik_title': 'Vigik La Poste',
@@ -43,6 +44,7 @@ const translations = {
         'delete_master_title': 'Supprimer un Code Permanent',
         'index_label': 'Index (0-99) :',
         'delete_btn': 'Supprimer',
+        'created_codes_title': 'Codes Générés (Local)',
 
         // Modal
         'modal_create_title': 'Nouveau Code',
@@ -50,7 +52,6 @@ const translations = {
         'modal_type_label': 'Type :',
         'type_master': 'Permanent',
         'type_single': 'Usage Unique',
-        'type_multi': 'Multi Usage',
         'modal_index_label': 'Index (0-99) :',
         'modal_cancel': 'Annuler',
         'modal_confirm': 'Créer',
@@ -60,6 +61,8 @@ const translations = {
         'battery_advanced': 'Détails Avancés',
         'battery_advanced_hint': '(Nécessite une ouverture de porte)',
         'device_info_title': 'Infos Appareil',
+        'wipe_masters_btn': 'Supprimer TOUS les codes permanents',
+        'wipe_confirm': 'Êtes-vous sûr de vouloir supprimer TOUS les codes permanents ? Cette action est irréversible.',
 
         // Logs
         'logs_title': 'Journaux',
@@ -99,6 +102,7 @@ const translations = {
         'save_btn': 'Save',
         'config_success': 'Configuration saved',
         'missing_key': 'Key missing. Go to Settings.',
+        'code_created': 'Code created successfully!',
 
         // Vigik
         'vigik_title': 'Vigik La Poste',
@@ -114,6 +118,7 @@ const translations = {
         'delete_master_title': 'Delete Permanent Code',
         'index_label': 'Index (0-99):',
         'delete_btn': 'Delete',
+        'created_codes_title': 'Generated Codes (Local)',
 
         // Modal
         'modal_create_title': 'New Code',
@@ -121,7 +126,6 @@ const translations = {
         'modal_type_label': 'Type:',
         'type_master': 'Permanent',
         'type_single': 'Single Use',
-        'type_multi': 'Multi Use',
         'modal_index_label': 'Index (0-99):',
         'modal_cancel': 'Cancel',
         'modal_confirm': 'Create',
@@ -131,6 +135,8 @@ const translations = {
         'battery_advanced': 'Advanced Details',
         'battery_advanced_hint': '(Requires door opening)',
         'device_info_title': 'Device Info',
+        'wipe_masters_btn': 'Delete ALL Permanent Codes',
+        'wipe_confirm': 'Are you sure you want to delete ALL permanent codes? This cannot be undone.',
 
         // Logs
         'logs_title': 'Logs',

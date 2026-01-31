@@ -343,6 +343,11 @@
             </div>
 
             <div class="card">
+                <h3 data-i18n="created_codes_title">Codes Générés</h3>
+                <div id="createdCodesList" style="max-height: 200px; overflow-y: auto; font-size: 0.9rem;"></div>
+            </div>
+
+            <div class="card">
                 <h3 data-i18n="delete_master_title">Supprimer Permanent</h3>
                 <div style="display:flex; gap:10px;">
                     <input type="number" id="deleteIndex" placeholder="Index (0-99)" style="margin-bottom:0;">
@@ -433,6 +438,11 @@
                 <h2 data-i18n="device_info_title">Infos</h2>
                 <div id="deviceInfoContainer" style="font-family: monospace;"></div>
             </div>
+
+            <div class="card">
+                <h3 style="color: #dc3545;">Zone Danger</h3>
+                <button id="wipeMastersBtn" class="btn danger" data-i18n="wipe_masters_btn">Supprimer TOUS les codes permanents</button>
+            </div>
         </div>
 
     </main>
@@ -465,7 +475,6 @@
             <select id="modalCodeType">
                 <option value="master" data-i18n="type_master">Permanent</option>
                 <option value="single" data-i18n="type_single">Usage Unique</option>
-                <option value="multi" data-i18n="type_multi">Multi</option>
             </select>
 
             <div id="modalIndexGroup">
