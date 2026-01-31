@@ -1,100 +1,144 @@
 const translations = {
-    'en': {
-        'title': 'Boks Web BLE Controller',
-        'connection_title': 'Connection',
-        'connect_btn': 'Connect to Boks',
-        'disconnect_btn': 'Disconnect',
-        'device_info_title': 'Device Info',
-        'battery_level': 'Battery Level:',
-        'battery_advanced': 'Advanced Battery Info',
-        'battery_advanced_hint': '(Requires door opening to update)',
-        'battery_type': 'Battery Type:',
-        'battery_waiting': 'Waiting for door opening...',
-        'battery_format': 'Format:',
-        'battery_temp': 'Temperature:',
-        'battery_voltages': 'Voltages (mV):',
-        'open_door_title': 'Open Door',
-        'open_door_btn': 'Open Door',
-        'open_code_placeholder': '6-digit Code',
-        'code_management_title': 'Code Management',
-        'create_code_btn': 'Create Code',
-        'count_codes_btn': 'Count Codes',
-        'code_counts_master': 'Permanent Codes:',
-        'code_counts_single': 'Single Use Codes:',
-        'maintenance_title': 'Maintenance',
-        'delete_master_title': 'Delete Permanent Code',
-        'delete_btn': 'Delete',
-        'config_key_label': 'Configuration Key (8 chars):',
-        'index_label': 'Index (0-99):',
-        'logs_title': 'Logs',
-        'get_logs_btn': 'Get Logs',
-        'clear_log_btn': 'Clear Log',
-        'console_log_title': 'Console Log',
-        'modal_create_title': 'Create New Code',
-        'modal_code_label': 'New Code (6 chars):',
-        'modal_type_label': 'Type:',
-        'type_master': 'Permanent Code (0x11)',
-        'type_single': 'Single Use (0x12)',
-        'type_multi': 'Multi Use (0x13)',
-        'modal_index_label': 'Index (Permanent only):',
-        'modal_index_help': 'Memory slot 0-99 for permanent codes.',
-        'modal_cancel': 'Cancel',
-        'modal_confirm': 'Create',
-        'status_connected': 'Connected',
-        'status_disconnected': 'Disconnected',
-        'alert_code_length': 'Code must be 6 characters',
-        'alert_key_length': 'Config Key must be 8 characters',
-        'update_available_title': 'New version available!',
-        'update_available_msg': 'A new update has been published.',
-        'update_btn': 'Update now'
-    },
     'fr': {
-        'title': 'Contrôleur Web BLE Boks',
-        'connection_title': 'Connexion',
-        'connect_btn': 'Se connecter à la Boks',
-        'disconnect_btn': 'Déconnecter',
-        'device_info_title': 'Infos Appareil',
-        'battery_level': 'Niveau Batterie :',
-        'battery_advanced': 'Infos Batterie Avancées',
-        'battery_advanced_hint': '(Nécessite une ouverture de porte pour la mise à jour)',
-        'battery_type': 'Type de Batterie :',
-        'battery_waiting': 'En attente d\'ouverture de porte...',
-        'battery_format': 'Format :',
-        'battery_temp': 'Température :',
-        'battery_voltages': 'Tensions (mV) :',
-        'open_door_title': 'Ouvrir la Porte',
-        'open_door_btn': 'Ouvrir',
-        'open_code_placeholder': 'Code à 6 chiffres',
-        'code_management_title': 'Gestion des Codes',
-        'create_code_btn': 'Créer un Code',
-        'count_codes_btn': 'Compter les Codes',
-        'code_counts_master': 'Codes Permanents :',
-        'code_counts_single': 'Codes Usage Unique :',
-        'maintenance_title': 'Maintenance',
-        'delete_master_title': 'Supprimer un Code Permanent',
-        'delete_btn': 'Supprimer',
-        'config_key_label': 'Clé de Configuration (8 chars) :',
-        'index_label': 'Index (0-99) :',
-        'logs_title': 'Journaux',
-        'get_logs_btn': 'Récupérer les Journaux',
-        'clear_log_btn': 'Effacer Console',
-        'console_log_title': 'Console',
-        'modal_create_title': 'Créer un Nouveau Code',
-        'modal_code_label': 'Nouveau Code (6 chars) :',
-        'modal_type_label': 'Type :',
-        'type_master': 'Code Permanent (0x11)',
-        'type_single': 'Usage Unique (0x12)',
-        'type_multi': 'Multi Usage (0x13)',
-        'modal_index_label': 'Index (Permanent uniquement) :',
-        'modal_index_help': 'Emplacement mémoire 0-99 pour les codes permanents.',
-        'modal_cancel': 'Annuler',
-        'modal_confirm': 'Créer',
+        // Nav
+        'nav_home': 'Accueil',
+        'nav_config': 'Paramètres',
+        'nav_codes': 'Codes',
+        'nav_maintenance': 'Maintenance',
+        'nav_logs': 'Journaux',
+
+        // Status
         'status_connected': 'Connecté',
         'status_disconnected': 'Déconnecté',
+        'connect_btn': 'Connexion',
+        'disconnect_btn': 'Déconnexion',
+
+        // Home
+        'home_open_title': 'Ouvrir la Porte',
+        'home_open_label': 'Code d\'ouverture :',
+        'home_open_btn': 'OUVRIR',
+
+        // Config
+        'config_title': 'Configuration',
+        'config_key_label': 'Clé de Configuration (8 char) :',
+        'config_key_help': 'Nécessaire pour créer des codes.',
+        'link_retrieve_key': 'Comment trouver ma clé ?',
+        'default_code_label': 'Code d\'ouverture par défaut :',
+        'default_code_help': 'Sera pré-rempli sur l\'accueil.',
+        'save_btn': 'Enregistrer',
+        'config_success': 'Configuration enregistrée',
+        'missing_key': 'Clé manquante. Allez dans Paramètres.',
+
+        // Vigik
+        'vigik_title': 'Vigik La Poste',
+        'vigik_desc': 'Activer l\'accès facteur (Scan NFC)',
+        'vigik_requirements': 'Requis: Boks v4.2+ (HW 10/125).',
+
+        // Codes
+        'codes_title': 'Gestion des Codes',
+        'refresh_btn': 'Actualiser',
+        'code_counts_master': 'Permanents',
+        'code_counts_single': 'Usage Unique',
+        'create_code_btn': 'Créer un nouveau code',
+        'delete_master_title': 'Supprimer un Code Permanent',
+        'index_label': 'Index (0-99) :',
+        'delete_btn': 'Supprimer',
+
+        // Modal
+        'modal_create_title': 'Nouveau Code',
+        'modal_code_label': 'Code (6 char) :',
+        'modal_type_label': 'Type :',
+        'type_master': 'Permanent',
+        'type_single': 'Usage Unique',
+        'type_multi': 'Multi Usage',
+        'modal_index_label': 'Index (0-99) :',
+        'modal_cancel': 'Annuler',
+        'modal_confirm': 'Créer',
+
+        // Maintenance
+        'battery_title': 'Batterie',
+        'battery_advanced': 'Détails Avancés',
+        'battery_advanced_hint': '(Nécessite une ouverture de porte)',
+        'device_info_title': 'Infos Appareil',
+
+        // Logs
+        'logs_title': 'Journaux',
+        'get_logs_btn': 'Récupérer',
+        'console_log_title': 'Console',
+        'clear_log_btn': 'Effacer',
+
+        // Alerts
         'alert_code_length': 'Le code doit faire 6 caractères',
-        'alert_key_length': 'La clé de configuration doit faire 8 caractères',
-        'update_available_title': 'Nouvelle version disponible !',
-        'update_available_msg': 'Une nouvelle mise à jour a été publiée.',
-        'update_btn': 'Mettre à jour maintenant'
+    },
+    'en': {
+        // Nav
+        'nav_home': 'Home',
+        'nav_config': 'Settings',
+        'nav_codes': 'Codes',
+        'nav_maintenance': 'Maintenance',
+        'nav_logs': 'Logs',
+
+        // Status
+        'status_connected': 'Connected',
+        'status_disconnected': 'Disconnected',
+        'connect_btn': 'Connect',
+        'disconnect_btn': 'Disconnect',
+
+        // Home
+        'home_open_title': 'Open Door',
+        'home_open_label': 'Opening Code:',
+        'home_open_btn': 'OPEN',
+
+        // Config
+        'config_title': 'Configuration',
+        'config_key_label': 'Configuration Key (8 char):',
+        'config_key_help': 'Required to create codes.',
+        'link_retrieve_key': 'How to find my key?',
+        'default_code_label': 'Default Opening Code:',
+        'default_code_help': 'Will be pre-filled on home.',
+        'save_btn': 'Save',
+        'config_success': 'Configuration saved',
+        'missing_key': 'Key missing. Go to Settings.',
+
+        // Vigik
+        'vigik_title': 'Vigik La Poste',
+        'vigik_desc': 'Enable Mailman Access (NFC Scan)',
+        'vigik_requirements': 'Requires: Boks v4.2+ (HW 10/125).',
+
+        // Codes
+        'codes_title': 'Code Management',
+        'refresh_btn': 'Refresh',
+        'code_counts_master': 'Permanent',
+        'code_counts_single': 'Single Use',
+        'create_code_btn': 'Create New Code',
+        'delete_master_title': 'Delete Permanent Code',
+        'index_label': 'Index (0-99):',
+        'delete_btn': 'Delete',
+
+        // Modal
+        'modal_create_title': 'New Code',
+        'modal_code_label': 'Code (6 char):',
+        'modal_type_label': 'Type:',
+        'type_master': 'Permanent',
+        'type_single': 'Single Use',
+        'type_multi': 'Multi Use',
+        'modal_index_label': 'Index (0-99):',
+        'modal_cancel': 'Cancel',
+        'modal_confirm': 'Create',
+
+        // Maintenance
+        'battery_title': 'Battery',
+        'battery_advanced': 'Advanced Details',
+        'battery_advanced_hint': '(Requires door opening)',
+        'device_info_title': 'Device Info',
+
+        // Logs
+        'logs_title': 'Logs',
+        'get_logs_btn': 'Fetch',
+        'console_log_title': 'Console',
+        'clear_log_btn': 'Clear',
+
+        // Alerts
+        'alert_code_length': 'Code must be 6 chars',
     }
 };

@@ -1,388 +1,530 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boks Web BLE Controller</title>
+    <title>Boks Controller</title>
     <link rel="manifest" href="manifest.json">
     
-    <!-- Favicons -->
-    <link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-    <link rel="icon" type="image/png" sizes="48x48" href="icon-48.png">
-    <link rel="icon" type="image/png" sizes="128x128" href="icon-128.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
     
     <meta name="theme-color" content="#1a73e8">
     <style>
+        :root {
+            --primary: #1a73e8;
+            --sidebar-bg: #fff;
+            --main-bg: #f8f9fa;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--main-bg);
+            color: var(--text-color);
             margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            text-align: center;
-            color: #1a73e8;
-        }
-
-        .header-controls {
+            padding: 0;
+            height: 100vh;
             display: flex;
-            justify-content: flex-end;
-            margin-bottom: 20px;
+            overflow: hidden;
         }
 
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 20px 0;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #5f6368;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .nav-item:hover {
+            background-color: #f1f3f4;
+            color: var(--primary);
+        }
+
+        .nav-item.active {
+            background-color: #e8f0fe;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background: #fff;
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            flex-shrink: 0;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ccc;
+        }
+        .status-dot.connected { background-color: #28a745; }
+        .status-dot.disconnected { background-color: #dc3545; }
+
+        .battery-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #5f6368;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Cards & UI Elements */
         .card {
-            background: white;
+            background: #fff;
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-        .card.disabled {
-            opacity: 0.6;
-            pointer-events: none;
-        }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #202124; margin-bottom: 20px;}
+        h3 { margin-top: 0; font-size: 1rem; color: #5f6368; }
 
-        .section {
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .section:last-child {
-            border-bottom: none;
-        }
-
-        h2, h3 {
-            margin-top: 0;
-        }
-
-        button {
-            background-color: #1a73e8;
+        .btn {
+            background-color: var(--primary);
             color: white;
             border: none;
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-            transition: background-color 0.2s;
+            transition: background 0.2s;
         }
+        .btn:hover { background-color: #1557b0; }
+        .btn:disabled { background-color: #dadce0; cursor: not-allowed; }
+        .btn.secondary { background-color: #fff; color: #5f6368; border: 1px solid #dadce0; }
+        .btn.secondary:hover { background-color: #f1f3f4; }
+        .btn.danger { background-color: #dc3545; }
+        .btn.danger:hover { background-color: #c82333; }
 
-        button:hover {
-            background-color: #1557b0;
-        }
-
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
-        button.danger {
-            background-color: #dc3545;
-        }
-
-        button.danger:hover {
-            background-color: #c82333;
+        .btn-large {
+            width: 100%;
+            padding: 20px;
+            font-size: 1.2rem;
+            margin-top: 10px;
         }
 
         input, select {
-            padding: 8px;
-            border: 1px solid #ddd;
+            padding: 10px;
+            border: 1px solid #dadce0;
             border-radius: 4px;
-            margin-right: 10px;
-            font-size: 14px;
-        }
-
-        .input-group {
+            width: 100%;
+            box-sizing: border-box;
             margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
         }
 
         .input-group label {
-            width: 200px;
+            display: block;
+            margin-bottom: 5px;
             font-weight: 500;
+            color: #5f6368;
         }
 
-        .status {
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        .status.connected { color: #28a745; }
-        .status.disconnected { color: #dc3545; }
-
-        #consoleLog {
-            background-color: #1e1e1e;
-            color: #00ff00;
-            font-family: 'Consolas', 'Monaco', monospace;
-            padding: 10px;
-            border-radius: 4px;
-            height: 300px;
-            overflow-y: auto;
-            font-size: 12px;
+        .help-text {
+            font-size: 0.85rem;
+            color: #666;
             margin-bottom: 10px;
-        }
-
-        .log-entry { margin: 2px 0; border-bottom: 1px solid #333; }
-        .log-tx { color: #4fc3f7; }
-        .log-rx { color: #ffb74d; }
-        .log-info { color: #81c784; }
-        .log-error { color: #e57373; }
-
-        #logsContainer {
-            margin-top: 10px;
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 500px;
-            border-radius: 8px;
-        }
-
-        .modal-header {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-
-        .modal-footer {
-            margin-top: 20px;
-            text-align: right;
-        }
-
-        .modal-footer button {
-            margin-left: 10px;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
             margin-bottom: 15px;
+        }
+
+        .stat-box {
             background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        .stat-label { font-size: 0.9rem; color: #5f6368; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.visible { display: flex; }
+        .modal-content {
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        /* Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        #consoleLog {
+            background: #1e1e1e;
+            color: #0f0;
+            font-family: monospace;
             padding: 10px;
+            height: 300px;
+            overflow-y: auto;
             border-radius: 4px;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .sidebar-header, .sidebar-footer { display: none; }
+            .nav-menu {
+                display: flex;
+                padding: 0;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .nav-item { flex: 1; justify-content: center; padding: 15px; white-space: nowrap; }
+            .nav-text { display: none; } /* Show only icons on mobile if needed, but for now show text */
+            .nav-text { display: inline; font-size: 0.9rem; }
+
+            .top-bar { padding: 0 10px; }
+            .btn { padding: 8px 12px; }
         }
     </style>
 </head>
 <body>
-    <div id="webBluetoothWarning" style="display:none; padding: 10px; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; margin-bottom: 15px; text-align: center; font-weight: bold;"></div>
 
-    <div class="container">
-        <div class="header-controls">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <img src="icon-32.png" alt="Logo" width="24" height="24">
+            <span>Boks Controller</span>
+        </div>
+        <div class="nav-menu">
+            <div class="nav-item active" data-tab="home">
+                <span class="nav-text" data-i18n="nav_home">Accueil</span>
+            </div>
+            <div class="nav-item" data-tab="config">
+                <span class="nav-text" data-i18n="nav_config">Paramètres</span>
+            </div>
+            <div class="nav-item" data-tab="codes">
+                <span class="nav-text" data-i18n="nav_codes">Codes</span>
+            </div>
+            <div class="nav-item" data-tab="maintenance">
+                <span class="nav-text" data-i18n="nav_maintenance">Maintenance</span>
+            </div>
+            <div class="nav-item" data-tab="logs">
+                <span class="nav-text" data-i18n="nav_logs">Journaux</span>
+            </div>
+        </div>
+        <div class="sidebar-footer">
             <select id="langSelector">
                 <option value="fr">Français</option>
                 <option value="en">English</option>
             </select>
+            <div style="margin-top: 10px; font-size: 0.8rem; color: #999;">v<span id="appVersionDisplay">-</span></div>
         </div>
+    </nav>
 
-        <h1 data-i18n="title">Boks Web BLE Controller</h1>
-
-        <!-- Connection -->
-        <div class="card">
-            <h2 data-i18n="connection_title">Connection</h2>
-            <button id="connectBtn" data-i18n="connect_btn">Connect to Boks</button>
-            <button id="disconnectBtn" disabled data-i18n="disconnect_btn">Disconnect</button>
-            <div id="status" class="status disconnected" data-i18n="status_disconnected">Disconnected</div>
-        </div>
-
-        <!-- Open Door -->
-        <div class="card disabled" id="openDoorCard">
-            <h2 data-i18n="open_door_title">Open Door</h2>
-            <div class="input-group">
-                <input type="text" id="openCode" placeholder="6-digit Code" maxlength="6" data-i18n="open_code_placeholder">
-                <button id="openDoorBtn" data-i18n="open_door_btn">Open Door</button>
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="status-indicator">
+                <div id="statusDot" class="status-dot disconnected"></div>
+                <span id="statusText" data-i18n="status_disconnected">Déconnecté</span>
             </div>
-        </div>
-
-        <!-- Code Management -->
-        <div class="card disabled" id="codeManagementCard">
-            <h2 data-i18n="code_management_title">Code Management</h2>
-
-            <div class="stats-grid">
-                <div>
-                    <div data-i18n="code_counts_master">Permanent Codes:</div>
-                    <strong id="countMaster">-</strong>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <div class="battery-indicator" id="headerBattery" style="display:none;">
+                    <span id="headerBatteryLevel">-</span>
                 </div>
-                <div>
-                    <div data-i18n="code_counts_single">Single Use Codes:</div>
-                    <strong id="countSingle">-</strong>
-                </div>
+                <button id="connectBtn" class="btn" data-i18n="connect_btn">Connexion</button>
+                <button id="disconnectBtn" class="btn secondary" style="display:none;" data-i18n="disconnect_btn">Déconnexion</button>
             </div>
+        </header>
 
-            <button id="countCodesBtn" data-i18n="count_codes_btn">Count Codes</button>
-            <button id="showCreateCodeModalBtn" data-i18n="create_code_btn">Create Code</button>
-        </div>
-
-        <!-- Maintenance -->
-        <div class="card disabled" id="maintenanceCard">
-            <h2 data-i18n="maintenance_title">Maintenance</h2>
-
-            <div class="section">
-                <h3 data-i18n="delete_master_title">Delete Permanent Code</h3>
+        <!-- Tab: Home -->
+        <section id="tab-home" class="tab-content active">
+            <div class="card">
+                <h2 data-i18n="home_open_title">Ouvrir la Porte</h2>
                 <div class="input-group">
-                    <label data-i18n="config_key_label">Configuration Key (8 chars):</label>
-                    <input type="text" id="maintConfigKey" placeholder="e.g. AABBCCDD" maxlength="8">
+                    <label data-i18n="home_open_label">Code d'ouverture :</label>
+                    <input type="text" id="homeOpenCode" placeholder="ex: 123456" maxlength="6" style="text-align: center; letter-spacing: 5px; font-size: 1.2rem;">
                 </div>
-                <div class="input-group">
-                    <label data-i18n="index_label">Index (0-99):</label>
-                    <input type="number" id="deleteIndex" value="0" min="0" max="99">
-                </div>
-                <button id="deleteMasterBtn" class="danger" data-i18n="delete_btn">Delete</button>
+                <button id="openDoorBtn" class="btn btn-large" disabled data-i18n="home_open_btn">OUVRIR</button>
+                <p id="doorStatus" style="text-align: center; margin-top: 15px; font-weight: bold; color: #5f6368;"></p>
             </div>
-        </div>
+        </section>
 
-        <!-- Device Info -->
-        <div class="card disabled" id="deviceInfo">
-            <h2 data-i18n="device_info_title">Device Info</h2>
-            <div class="input-group">
-                <label data-i18n="battery_level">Battery Level:</label>
-                <span id="batteryLevel">-</span>
+        <!-- Tab: Config -->
+        <section id="tab-config" class="tab-content">
+            <div class="card">
+                <h2 data-i18n="config_title">Configuration</h2>
+
+                <div class="input-group">
+                    <label data-i18n="config_key_label">Clé de Configuration (8 caractères) :</label>
+                    <input type="text" id="configKey" placeholder="AABBCCDD" maxlength="8">
+                    <div class="help-text">
+                        <span data-i18n="config_key_help">Nécessaire pour créer des codes.</span>
+                        <a href="https://github.com/thib3113/ha-boks/blob/main/documentation/FR/RETRIEVE_KEYS.md" target="_blank" data-i18n="link_retrieve_key">Comment trouver ma clé ?</a>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label data-i18n="default_code_label">Code d'ouverture par défaut :</label>
+                    <input type="text" id="defaultOpenCode" placeholder="123456" maxlength="6">
+                    <div class="help-text" data-i18n="default_code_help">Sera pré-rempli sur l'accueil.</div>
+                </div>
+
+                <button id="saveConfigBtn" class="btn" data-i18n="save_btn">Enregistrer</button>
             </div>
-            
-            <div id="batteryAdvanced" style="border-top: 1px solid #eee; margin-top: 10px; padding-top: 10px;">
-                <h3 data-i18n="battery_advanced">Advanced Battery Info</h3>
-                <p style="font-size: 0.9em; color: #666; font-style: italic;" data-i18n="battery_advanced_hint">
+
+            <div class="card" id="vigikCard" style="display: none;">
+                <h2 data-i18n="vigik_title">Vigik La Poste</h2>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <span data-i18n="vigik_desc">Activer l'accès facteur (Scan NFC)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="vigikToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <p class="help-text" style="margin-top: 10px;" data-i18n="vigik_requirements">Requis: Boks v4.2+ (HW 10/125).</p>
+            </div>
+        </section>
+
+        <!-- Tab: Codes -->
+        <section id="tab-codes" class="tab-content">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 data-i18n="codes_title">Gestion des Codes</h2>
+                    <button id="refreshCodesBtn" class="btn secondary" data-i18n="refresh_btn">Actualiser</button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="countMaster">-</div>
+                        <div class="stat-label" data-i18n="code_counts_master">Permanents</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="countSingle">-</div>
+                        <div class="stat-label" data-i18n="code_counts_single">Usage Unique</div>
+                    </div>
+                </div>
+
+                <button id="showCreateCodeModalBtn" class="btn" style="width: 100%; margin-bottom: 10px;" data-i18n="create_code_btn">Créer un nouveau code</button>
+            </div>
+
+            <div class="card">
+                <h3 data-i18n="delete_master_title">Supprimer un Code Permanent</h3>
+                <div class="input-group">
+                    <label data-i18n="index_label">Index (0-99) :</label>
+                    <input type="number" id="deleteIndex" min="0" max="99" placeholder="0">
+                </div>
+                <button id="deleteMasterBtn" class="btn danger" data-i18n="delete_btn">Supprimer</button>
+            </div>
+        </section>
+
+        <!-- Tab: Maintenance -->
+        <section id="tab-maintenance" class="tab-content">
+            <div class="card">
+                <h2 data-i18n="battery_title">Batterie</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="batLevel">-</div>
+                        <div class="stat-label">Niveau</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="batTemp">-</div>
+                        <div class="stat-label">Température</div>
+                    </div>
+                </div>
+
+                <h3 data-i18n="battery_advanced">Détails Avancés</h3>
+                 <p style="font-size: 0.9em; color: #666; font-style: italic;" data-i18n="battery_advanced_hint">
                     (Requires door opening to update)
                 </p>
-                
-                <div class="input-group" style="margin-bottom: 10px;">
-                    <label data-i18n="battery_type">Battery Type:</label>
-                    <select id="batteryTypeSelector">
+                <div style="margin-bottom: 10px;">
+                     <select id="batteryTypeSelector">
                         <option value="aaa" selected>8x AAA (Standard)</option>
                         <option value="lsh14">LSH14 (Lithium)</option>
                     </select>
                 </div>
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <img id="batteryImage" src="https://www.batteries4pro.com/25694-pos_thickbox/10-piles-alcaline-industrial-pro-varta-aaa-lr03.jpg" alt="Battery Type" style="height: 100px; border-radius: 4px; object-fit: contain;">
-                </div>
-                
-                <div id="batteryWaiting" style="color: #1a73e8;" data-i18n="battery_waiting">
-                    Waiting for door opening...
-                </div>
-
-                <div id="batteryData" style="display: none;">
-                    <div class="input-group">
-                        <label data-i18n="battery_format">Format:</label>
-                        <span id="batteryFormat">-</span>
-                    </div>
-                    <div class="input-group">
-                        <label data-i18n="battery_temp">Temperature:</label>
-                        <span id="batteryTemp">-</span>
-                    </div>
-                    
-                    <div style="margin-top: 10px;">
-                        <strong data-i18n="battery_voltages">Voltages (mV):</strong>
-                        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; text-align: center; margin-top: 5px; font-size: 0.9em;">
-                            <div><div>First</div><div id="batVFirst">-</div></div>
-                            <div><div>Min</div><div id="batVMin">-</div></div>
-                            <div><div>Mean</div><div id="batVMean">-</div></div>
-                            <div><div>Max</div><div id="batVMax">-</div></div>
-                            <div><div>Last</div><div id="batVLast">-</div></div>
-                        </div>
-                    </div>
+                <div id="batteryDataGrid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; text-align: center; font-size: 0.9em;">
+                    <div><div>First</div><div id="batVFirst">-</div></div>
+                    <div><div>Min</div><div id="batVMin">-</div></div>
+                    <div><div>Mean</div><div id="batVMean">-</div></div>
+                    <div><div>Max</div><div id="batVMax">-</div></div>
+                    <div><div>Last</div><div id="batVLast">-</div></div>
                 </div>
 
-                <div id="batteryAlert" style="display: none; margin-top: 15px; padding: 10px; background-color: #ffebee; border: 1px solid #ef9a9a; border-radius: 4px; color: #c62828;">
-                    <strong>WARNING:</strong> Low voltage detected! <br>
-                    <span id="batteryAlertMsg"></span>
-                </div>
+                <div id="batteryAlert" style="display: none; margin-top: 15px; padding: 10px; background-color: #ffebee; border: 1px solid #ef9a9a; border-radius: 4px; color: #c62828;"></div>
             </div>
 
-            <div id="deviceInfoContainer" style="margin-top: 20px;"></div>
-        </div>
+            <div class="card">
+                <h2 data-i18n="device_info_title">Infos Appareil</h2>
+                <div id="deviceInfoContainer"></div>
+            </div>
+        </section>
 
-        <!-- Logs -->
-        <div class="card disabled" id="logsCard">
-            <h3 data-i18n="logs_title">Logs</h3>
-            <button id="getLogsBtn" data-i18n="get_logs_btn">Get Logs</button>
-            <div id="logsContainer"></div>
-        </div>
+        <!-- Tab: Logs -->
+        <section id="tab-logs" class="tab-content">
+             <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 data-i18n="logs_title">Journaux</h2>
+                    <button id="getLogsBtn" class="btn secondary" data-i18n="get_logs_btn">Récupérer</button>
+                </div>
+                <div id="logsContainer" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-top: 10px;"></div>
+            </div>
 
-        <!-- Console -->
-        <div class="card">
-            <h3 data-i18n="console_log_title">Console Log</h3>
-            <div id="consoleLog"></div>
-            <button id="clearLogBtn" data-i18n="clear_log_btn">Clear Log</button>
-        </div>
-    </div>
+            <div class="card">
+                <h3 data-i18n="console_log_title">Console</h3>
+                <div id="consoleLog"></div>
+                <button id="clearLogBtn" class="btn secondary" style="margin-top: 10px;" data-i18n="clear_log_btn">Effacer</button>
+            </div>
+        </section>
+    </main>
 
-    <!-- Create Code Modal -->
+    <!-- Modal Create Code -->
     <div id="createCodeModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header" data-i18n="modal_create_title">Create New Code</div>
+            <h2 data-i18n="modal_create_title">Nouveau Code</h2>
 
             <div class="input-group">
-                <label data-i18n="config_key_label">Configuration Key (8 chars):</label>
-                <input type="text" id="modalConfigKey" placeholder="e.g. AABBCCDD" maxlength="8">
+                <label data-i18n="modal_code_label">Code (6 caractères) :</label>
+                <input type="text" id="modalNewCode" maxlength="6">
             </div>
 
             <div class="input-group">
-                <label data-i18n="modal_code_label">New Code (6 chars):</label>
-                <input type="text" id="modalNewCode" placeholder="e.g. 1234AB" maxlength="6">
-            </div>
-
-            <div class="input-group">
-                <label data-i18n="modal_type_label">Type:</label>
+                <label data-i18n="modal_type_label">Type :</label>
                 <select id="modalCodeType">
-                    <option value="master" data-i18n="type_master">Permanent Code (0x11)</option>
-                    <option value="single" data-i18n="type_single">Single Use (0x12)</option>
-                    <option value="multi" data-i18n="type_multi">Multi Use (0x13)</option>
+                    <option value="master" data-i18n="type_master">Permanent</option>
+                    <option value="single" data-i18n="type_single">Usage Unique</option>
+                    <option value="multi" data-i18n="type_multi">Multi Usage</option>
                 </select>
             </div>
 
             <div class="input-group" id="modalIndexGroup">
-                <label data-i18n="modal_index_label">Index (Permanent only):</label>
+                <label data-i18n="modal_index_label">Index (0-99) :</label>
                 <input type="number" id="modalCodeIndex" value="0" min="0" max="99">
-                <small style="display:block; width:100%; color:#666; font-style:italic;" data-i18n="modal_index_help">Memory slot 0-99.</small>
             </div>
 
-            <div class="modal-footer">
-                <button id="closeModalBtn" style="background-color: #6c757d;" data-i18n="modal_cancel">Cancel</button>
-                <button id="confirmCreateCodeBtn" data-i18n="modal_confirm">Create</button>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button id="closeModalBtn" class="btn secondary" data-i18n="modal_cancel">Annuler</button>
+                <button id="confirmCreateCodeBtn" class="btn" data-i18n="modal_confirm">Créer</button>
             </div>
         </div>
     </div>
 
-    <div id="updateNotification" style="display: none; position: fixed; bottom: 20px; right: 20px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-left: 5px solid #1a73e8; z-index: 1000;">
-        <div style="margin-bottom: 10px; font-weight: bold;" data-i18n="update_available_title">New version available!</div>
-        <div style="font-size: 14px; margin-bottom: 15px; color: #666;" data-i18n="update_available_msg">A new update has been published.</div>
-        <button id="updateBtn" style="width: 100%;" data-i18n="update_btn">Update now</button>
-    </div>
+    <!-- Bluetooth Warning -->
+    <div id="webBluetoothWarning" style="display:none; position:fixed; bottom:20px; left:20px; right:20px; padding: 15px; background: #f8d7da; color: #721c24; border-radius: 8px; z-index: 2000; text-align: center;"></div>
 
     <script src="ble-utils.js"></script>
     <script src="locales.js"></script>
